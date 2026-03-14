@@ -24,7 +24,7 @@ Options:
 - QA (reviewing and fixing)
 - Complete
 
-Current: **Requirements**
+Current: **Design (working on architecture)**
 
 ## Session Start Ritual
 
