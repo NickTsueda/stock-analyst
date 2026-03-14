@@ -50,6 +50,14 @@ The experience follows five stages, each mapping to a pipeline stage.
 - Revision step shows as "skipped" if the Thesis Builder's self-critique finds no substantive gaps
 - Target: 45–120 seconds total
 
+**Approximate time budget per stage:**
+| Stage | Estimate | Notes |
+|---|---|---|
+| Data Collector | 10–20s | Parallel API calls; EDGAR parsing is slowest |
+| Financial Analyst | 15–30s | Single Claude call with full data payload |
+| Thesis Builder | 15–30s | Single Claude call for narrative synthesis |
+| Revision Loop | 0–30s | Skipped if no gaps; 30s timeout if triggered |
+
 ### Stage 3: Read Analysis (Dashboard → Report Hybrid)
 **Top section (dashboard):**
 - Confidence Score gauge (0–100)
@@ -61,12 +69,14 @@ The experience follows five stages, each mapping to a pipeline stage.
 - **Financial Analysis** — Revenue trends, margins, balance sheet health, with Plotly charts
 - **Peer Comparison** — Key metrics vs 3–5 sector peers, relative valuation context
 - **Forward Outlook (Trend-Based)** — Directional views on revenue, margins, and catalysts over next 12 months. Subtitle: *"Directional assessment based on available filings and historical patterns. Does not incorporate analyst consensus or recent earnings guidance."*
-- **Risk Factors** — Bear case arguments
+- **Bull Case** — Key arguments supporting the investment thesis
+- **Risk Factors** — Bear case arguments and what could go wrong
 - **Macro Context** — How rates, GDP, sector trends affect this stock
 - **Insider & Institutional Activity** — Recent Form 4 filings, institutional ownership changes
 
 ### Stage 4: Understand Confidence
-- Confidence Score breakdown panel showing 6 contributing factors, each scored
+- The dashboard gauge (Stage 3) is clickable/expandable to reveal the full breakdown panel
+- Breakdown shows 6 contributing factors, each scored
 - Each factor shows its score, a one-sentence explanation, and a directional indicator (helping / hurting the overall score)
 - See Section 5 for full scoring design
 
@@ -92,9 +102,10 @@ Orchestrator → Data Collector → Financial Analyst → Thesis Builder
 
 ### Agent 1: Orchestrator
 
-- **Responsibility:** Validates ticker, dispatches agents in sequence, manages the revision loop, handles failures, assembles final output
+- **Responsibility:** Validates ticker, dispatches agents in sequence, manages the revision loop, handles failures, assembles final output, computes the Data Completeness confidence sub-score (since it knows which sources succeeded/failed)
 - **Input:** Ticker string (e.g., `"AAPL"`)
 - **Output:** Complete `AnalysisReport` object containing all sections
+- **Computes:** `data_completeness_score` (see Section 5 for formula)
 - **Error handling:** If Data Collector returns partial data, continues with what's available. If Financial Analyst or Thesis Builder fails entirely, returns an error state to the UI. If the revision loop times out, uses the pre-revision thesis.
 
 ### Agent 2: Data Collector
@@ -103,14 +114,15 @@ Orchestrator → Data Collector → Financial Analyst → Thesis Builder
 - **Input:** Validated ticker
 - **Output:** `CompanyData` object containing:
   - Market data (price, volume, ratios, historical prices) — from yfinance
-  - Filing data (income statement, balance sheet, cash flow, MD&A section from recent 10-K/10-Q) — from SEC EDGAR
+  - Filing data (income statement, balance sheet, cash flow, MD&A section from recent 10-K/10-Q) — from SEC EDGAR. MD&A extraction: locate "Item 7" (10-K) or "Item 2" (10-Q) header in filing HTML, extract text until next item header, truncate to ~4,000 tokens for the LLM prompt.
   - Macro data (fed funds rate, GDP growth, unemployment, CPI, yield curve) — from FRED
   - Insider transactions (recent Form 4 buys/sells) — from SEC EDGAR
   - Peer data (3–5 companies in same industry: key ratios, market cap, growth rates) — from yfinance
   - Metadata: which sources succeeded/failed, timestamps
 - **Key behaviors:**
   - Each data source fetch is independent — one failure doesn't block others. Returns a `data_completeness` flag per source.
-  - **Peer selection:** Uses yfinance's `industry` field. Constrains peers to a market cap band of 0.25x–4x the target's market cap, then selects 3–5 largest within that band. If fewer than 3 peers fit, widens the band and flags the mismatch in metadata.
+  - **Peer selection:** Uses yfinance's `industry` field. Constrains peers to a market cap band of 0.25x–4x the target's market cap, then selects 3–5 largest within that band. If fewer than 3 peers fit, widens the band and flags the mismatch in metadata. If `industry` is missing or overly generic (e.g., "Conglomerates"), falls back to `sector` field and flags reduced peer relevance. If neither yields usable peers, skips peer comparison and penalizes Valuation Clarity score.
+  - **Computes:** `company_predictability_score` — programmatic calculation based on historical revenue/earnings volatility (coefficient of variation). Requires at least 8 quarters of data; if fewer are available, defaults to 50 with a note.
 
 ### Agent 3: Financial Analyst
 
@@ -125,8 +137,8 @@ Orchestrator → Data Collector → Financial Analyst → Thesis Builder
   - Macro impact assessment
   - Insider signal interpretation
   - `directional_lean` (BULLISH / NEUTRAL / BEARISH) with one-sentence rationale — the Analyst's overall read on the numbers before thesis synthesis
-  - Confidence sub-scores for each of the 6 factors
-- **On revision:** Produces a `RevisedAnalysis` that focuses specifically on the questions raised, with deeper examination and any corrected assessments.
+  - Confidence sub-scores for: Earnings Quality, Valuation Clarity, Insider Signal, Macro Conditions (LLM-assessed factors). Note: Data Completeness is computed by the Orchestrator, Company Predictability is computed by the Data Collector.
+- **On revision:** Produces a `RevisedAnalysis` (see data contract below) that focuses specifically on the questions raised, with deeper examination and any corrected assessments.
 
 ### Agent 4: Thesis Builder
 
@@ -141,6 +153,18 @@ Orchestrator → Data Collector → Financial Analyst → Thesis Builder
   - Overall Confidence Score (0–100) with breakdown
   - Section narratives (financial analysis, risk factors, macro context, insider activity)
 - **Revision behavior:** After generating the initial thesis, the Thesis Builder self-critiques by asking: *"What are the weakest assumptions in this thesis? What contradictions did I gloss over? What would a skeptical analyst challenge?"* If it identifies substantive gaps (not cosmetic), it produces a `RevisionRequest` with 1–3 specific questions and sends it back to the Financial Analyst. After receiving the `RevisedAnalysis`, it produces a final strengthened thesis. Revision is skipped if self-critique finds no substantive gaps.
+
+### Data Contracts: Revision Types
+
+**`RevisionRequest`:**
+- `questions: list[str]` — 1–3 specific questions the Thesis Builder wants re-examined
+- `factors_to_reexamine: list[str]` — which confidence factors or analysis areas need deeper scrutiny (e.g., `["insider_signal", "margin_trends"]`)
+- `context: str` — brief explanation of what triggered the revision (e.g., "Thesis is BUY but insider selling is heavy and accelerating")
+
+**`RevisedAnalysis`:**
+- `revised_assessments: dict[str, str]` — updated assessments keyed by factor/area
+- `revised_subscores: dict[str, int]` — any confidence sub-scores that changed
+- `revision_rationale: str` — summary of what changed and why
 
 ### Revision Loop Details
 
@@ -203,7 +227,11 @@ Weighted average of 6 sub-scores, each 0–100:
 
 ### How Each Sub-Score Is Determined
 
-**Data Completeness** — Programmatic. All 3 sources succeed = 100. yfinance only = 40. yfinance + EDGAR = 75. Proportional based on what's available.
+**Data Completeness** — Programmatic. Weighted by source criticality:
+- yfinance: 40 points (essential)
+- SEC EDGAR: 35 points (important)
+- FRED: 25 points (nice-to-have)
+- Score = sum of points for successful sources. Examples: all 3 = 100, yfinance only = 40, yfinance + EDGAR = 75, yfinance + FRED = 65, EDGAR + FRED only = 60 (no yfinance triggers error state before this is reached in most cases).
 
 **Earnings Quality** — LLM-assessed with calibrated rubric. Claude evaluates whether the financial picture is explainable and coherent within the company's context. A turnaround story with declining revenue but improving margins can still score high if the inconsistencies are explainable.
 
@@ -223,9 +251,9 @@ Rubric anchors:
 - 61–80: Clear (good peer comps, stable cash flows, standard valuation metrics available)
 - 81–100: Highly transparent (excellent peer set, predictable cash flows, multiple valuation methods converge)
 
-**Company Predictability** — Programmatic. Based on historical revenue/earnings volatility (coefficient of variation). Steady growers score high; erratic companies score low.
+**Company Predictability** — Programmatic. Based on historical revenue/earnings volatility (coefficient of variation). Steady growers score high; erratic companies score low. Requires at least 8 quarters of data from yfinance/EDGAR; if fewer are available, defaults to 50 with a note explaining insufficient history.
 
-**Insider Signal** — Programmatic + LLM. Asymmetric scoring: insider buying strongly boosts the score (one clear reason to buy), insider selling only moderately penalizes (many non-informative reasons — 10b5-1 plans, diversification, tax events). Scored against the Financial Analyst's `directional_lean`, not the final thesis. No insider data = neutral (50) with a note.
+**Insider Signal** — Programmatic + LLM. Asymmetric scoring: insider buying strongly boosts the score (one clear reason to buy), insider selling only moderately penalizes (many non-informative reasons — 10b5-1 plans, diversification, tax events). Scored against the Financial Analyst's `directional_lean`: insider activity that *confirms* the directional lean boosts the score; activity that *contradicts* it moderately penalizes (since insiders may have non-public information worth noting, but could also be acting for personal reasons). No insider data = neutral (50) with a note.
 
 **Macro Conditions** — LLM-assessed with calibrated rubric. Claude evaluates whether macro indicators are readable and directionally clear for this company's sector, not merely stable. A clearly dovish Fed is volatile but readable.
 
@@ -254,6 +282,7 @@ Each factor shows its score, a one-sentence explanation, and a directional indic
 - **SEC EDGAR compliance:** User-Agent header with contact email, 0.1s minimum between requests
 - **Graceful failures:** Every data source function must return gracefully on failure — never crash the pipeline
 - **Disclaimer required:** All investment-related output must include: "This is AI-generated analysis for educational purposes only. Not financial advice."
+- **Prompt size management:** The Financial Analyst and Thesis Builder receive potentially large payloads (financial data + MD&A + peer data). MD&A text is truncated to ~4,000 tokens at extraction time. Historical data older than 4 years is summarized rather than sent raw. Total prompt payload per Claude call should target <8,000 tokens of data context to leave room for instructions and response.
 
 ---
 
