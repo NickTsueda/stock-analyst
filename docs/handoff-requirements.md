@@ -2,15 +2,17 @@
 
 **Date:** 2026-03-14
 **Status:** Complete
-**Next phase:** Design → Implementation Planning
+**Next phase:** Build — Phase 1
 
 ---
 
 ## What Was Done
 
-Completed the full PRD through collaborative brainstorming and iterative review. The spec covers 7 sections: Product Overview, User Journey, Agent Architecture, Data Sources, Confidence Score, Technical Constraints, and V2 Considerations.
+Completed the full PRD and design doc through collaborative brainstorming and iterative review. The PRD covers Product Overview, User Journey, and V2 Considerations. The design doc covers Agent Architecture, Data Sources, Confidence Score Algorithm, Technical Constraints, and UI Architecture.
 
-**Spec location:** `docs/superpowers/specs/2026-03-14-prd-design.md`
+**Spec locations:**
+- PRD: `docs/prd.md`
+- Architecture & Design: `docs/design.md`
 
 ## Key Decisions Made
 
@@ -33,7 +35,7 @@ Completed the full PRD through collaborative brainstorming and iterative review.
 | Earnings Quality | 25% | Financial Analyst (LLM-assessed) |
 | Valuation Clarity | 20% | Financial Analyst (LLM-assessed) |
 | Company Predictability | 20% | Data Collector (programmatic) |
-| Insider Signal | 10% | Financial Analyst (LLM + programmatic) |
+| Insider Signal | 10% | Orchestrator post-processing (Python heuristic scored against `directional_lean` + recommendation) |
 | Macro Conditions | 5% | Financial Analyst (LLM-assessed) |
 
 All LLM-assessed factors use calibrated 5-tier rubric anchors to prevent score clustering.
@@ -50,13 +52,10 @@ yfinance (essential, 40pts) > SEC EDGAR (important, 35pts) > FRED (nice-to-have,
 
 ## What the Next Session Should Do
 
-1. **Read the full spec** at `docs/superpowers/specs/2026-03-14-prd-design.md`
-2. **Design the architecture** — define the typed data contracts (Python dataclasses/Pydantic models), module structure, and file layout
-3. **Write the implementation plan** — break the build into phased steps with clear acceptance criteria per step
-4. **Save the plan** to `docs/handoff-implementation-plan.md`
+Design and implementation planning are complete. Next session begins **Build — Phase 1**. See `docs/handoff-design.md` for details.
 
-## Open Questions for Next Session
+## Open Questions (Resolved in Design Phase)
 
-- How should MD&A HTML parsing handle edge cases (filings with non-standard headers, very old filing formats)?
-- Should the Financial Analyst prompt use few-shot examples of good analysis, or rely on zero-shot with detailed rubrics?
-- What's the right token budget split between MD&A text, financial data, and peer data within the ~8K data context target?
+- **MD&A parsing:** BeautifulSoup `get_text()` + regex for section headers. Fallback to first 15K chars. Only filings from 2000+. Best-effort — not a critical dependency since XBRL provides the numbers.
+- **Prompt strategy:** Zero-shot with detailed rubrics and calibrated 5-tier anchors (not few-shot). Simpler, cheaper, and rubric anchors prevent score clustering.
+- **Token budget:** ~4K tokens for MD&A text at extraction time. Target <8K tokens of data context per Claude call total. Historical data older than 4 years summarized rather than sent raw.

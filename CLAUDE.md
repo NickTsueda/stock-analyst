@@ -6,7 +6,7 @@ A multi-agent AI stock analysis tool that takes a ticker symbol and produces a c
 
 **Target user:** Self-directed retail investors managing $25K-$500K portfolios who want institutional-quality analysis without Bloomberg/FactSet costs.
 
-**Key differentiator:** Every analysis includes a Confidence Score (0-100) with a transparent breakdown of what drives the score up or down (data completeness, financial consistency, insider alignment, macro conditions, company predictability). Users see exactly why the system is confident or uncertain, enabling better judgment.
+**Key differentiator:** Every analysis includes a Confidence Score (0-100) with a transparent breakdown of 6 weighted factors (data completeness, earnings quality, valuation clarity, company predictability, insider signal, macro conditions). Users see exactly why the system is confident or uncertain, enabling better judgment.
 
 **Architecture:** 4-agent pipeline (Orchestrator → Data Collector → Financial Analyst → Thesis Builder) using Python, Claude Sonnet, and Streamlit. No LangChain/CrewAI — plain Python classes with typed data contracts.
 
@@ -15,26 +15,24 @@ A multi-agent AI stock analysis tool that takes a ticker symbol and produces a c
 ## Current Stage
 
 Options:
-- Requirements (working on PRD)
-- Design (working on architecture)
-- Implementation Planning (writing the build plan)
-- Build — Phase 1 (Foundation + Data Sources)
-- Build — Phase 2 (Agent Layer)
-- Build — Phase 3 (Streamlit UI + Polish)
-- QA (reviewing and fixing)
+- Session 1: Setup + Design (PRD, architecture, handoff docs)
+- Session 2: Build — Phase 1 (Foundation + Data Sources)
+- Session 3: Build — Phase 2 (Agents + UI)
+- Session 4: QA (reviewing and fixing)
 - Complete
 
-Current: **Design (working on architecture)**
+Current: **Session 2: Build — Phase 1 (Foundation + Data Sources)**
 
 ## Session Start Ritual
 
 Before doing anything in this session, read the following documents in order:
 
 1. /docs/prd.md
-2. /docs/handoff-requirements.md
-3. /docs/handoff-design.md
-4. /docs/handoff-implementation-plan.md
-5. /docs/handoff-build.md
+2. /docs/design.md
+3. /docs/handoff-requirements.md
+4. /docs/handoff-design.md
+5. /docs/handoff-implementation-plan.md
+6. /docs/handoff-build.md
 
 After reading, summarize:
 - What has been built so far
@@ -47,11 +45,11 @@ Note: Skip any file that is empty or does not yet exist.
 
 ## Implementation Plan
 
-**Canonical source:** `docs/handoff-implementation-plan.md` (copied from the plan file during Session 2)
+**Canonical source:** `docs/handoff-implementation-plan.md` (full plan with all tasks and checkboxes)
 
 **Notion copy** (for sharing/reference): https://www.notion.so/3236b14dd0678122a2abe816656259a9
 
-If there's a conflict, the local `/docs/` file is the source of truth.
+The local file is the source of truth. Notion is a sharing copy.
 
 ## Folder Conventions
 
@@ -69,7 +67,10 @@ If there's a conflict, the local `/docs/` file is the source of truth.
 - `yfinance` for market data (unofficial scraper — handle failures gracefully)
 - `fredapi` for macro data (requires free FRED API key)
 - `requests` for SEC EDGAR API
+- `beautifulsoup4` for SEC filing HTML parsing
 - `plotly` for charts
+- `pandas` for data manipulation
+- `python-dotenv` for environment variables
 - `pytest` for testing
 
 ## Hard Rules
