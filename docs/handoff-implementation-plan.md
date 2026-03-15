@@ -364,9 +364,9 @@ git commit -m "Add Yahoo Finance data source"
 - Create: `~/stock-analyst/src/data_sources/sec_edgar.py`
 - Create: `~/stock-analyst/tests/test_sec_edgar.py`
 
-- [ ] **Step 1: Write tests** — mock HTTP responses with sample SEC JSON, test filing text extraction with real HTML fixture
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement sec_edgar.py**
+- [x] **Step 1: Write tests** — mock HTTP responses with sample SEC JSON, test filing text extraction with real HTML fixture
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement sec_edgar.py**
 
 Functions:
 - `get_cik_from_ticker(ticker) -> str` — uses SEC company tickers JSON
@@ -383,8 +383,8 @@ Functions:
 
 > **Hybrid approach (2026-03-13):** Uses XBRL API for reliable structured financial numbers + BeautifulSoup-cleaned HTML for qualitative text. Even if text extraction is flaky, the analysis always works because XBRL data is rock-solid. Added `beautifulsoup4` to dependencies.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add SEC EDGAR data source with filing text extraction"
 ```
@@ -395,14 +395,14 @@ git commit -m "Add SEC EDGAR data source with filing text extraction"
 - Create: `~/stock-analyst/src/data_sources/fred.py`
 - Create: `~/stock-analyst/tests/test_fred.py`
 
-- [ ] **Step 1: Write tests** — mock `fredapi.Fred`
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement fred.py**
+- [x] **Step 1: Write tests** — mock `fredapi.Fred`
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement fred.py**
 
 Function: `get_macro_context() -> dict` — fetches latest values for FEDFUNDS, GDPC1, UNRATE, CPIAUCSL, T10Y2Y. Calculates YoY changes where appropriate.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add FRED macro data source"
 ```
@@ -411,9 +411,9 @@ git commit -m "Add FRED macro data source"
 
 ### Session 2 Handoff
 
-- [ ] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
-- [ ] **Update CLAUDE.md stage to "Build — Phase 2"**
-- [ ] **Commit handoff docs**
+- [x] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
+- [x] **Update CLAUDE.md stage to "Build — Phase 2"**
+- [x] **Commit handoff docs**
 
 ---
 

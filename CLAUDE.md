@@ -21,7 +21,7 @@ Options:
 - Session 4: QA (reviewing and fixing)
 - Complete
 
-Current: **Session 2: Build — Phase 1 (Foundation + Data Sources)**
+Current: **Session 3: Build — Phase 2 (Agents + UI)**
 
 ## Session Start Ritual
 
