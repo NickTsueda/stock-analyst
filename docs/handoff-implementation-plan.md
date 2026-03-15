@@ -167,7 +167,7 @@ User Input (ticker)
 - Create: `~/stock-analyst/src/__init__.py`, `src/agents/__init__.py`, `src/data_sources/__init__.py`, `src/ui/__init__.py`, `tests/__init__.py`
 - Create: `~/stock-analyst/src/config.py`
 
-- [ ] **Step 1: Create pyproject.toml and code structure**
+- [x] **Step 1: Create pyproject.toml and code structure**
 ```toml
 [project]
 name = "stock-analyst"
@@ -193,9 +193,9 @@ requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 ```
 
-- [ ] **Step 2: Create .gitignore, .env.example, all init.py files**
+- [x] **Step 2: Create .gitignore, .env.example, all init.py files**
 
-- [ ] **Step 3: Create src/config.py**
+- [x] **Step 3: Create src/config.py**
 ```python
 import os
 from dotenv import load_dotenv
@@ -218,10 +218,10 @@ class Settings:
 settings = Settings()
 ```
 
-- [ ] **Step 4: Verify setup**
+- [x] **Step 4: Verify setup**
 Run: `cd ~/stock-analyst && pip install -e ".[dev]" && python -c "from src.config import settings; print('OK')"`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add -A && git commit -m "Initialize project structure with dependencies and config"
 ```
@@ -233,7 +233,7 @@ git add -A && git commit -m "Initialize project structure with dependencies and 
 - Create: `~/stock-analyst/tests/test_models.py`
 - Create: `~/stock-analyst/tests/conftest.py` (initial shared fixtures)
 
-- [ ] **Step 1: Write test for model serialization**
+- [x] **Step 1: Write test for model serialization**
 ```python
 def test_data_package_round_trip():
     """DataPackage can serialize to dict and back."""
@@ -250,9 +250,9 @@ def test_data_package_to_prompt_text():
     assert pkg.ticker in text
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-- [ ] **Step 3: Implement models.py**
+- [x] **Step 3: Implement models.py**
 
 Key dataclasses:
 - `FinancialStatements` — multi-year income/balance/cash flow
@@ -309,9 +309,9 @@ Each major model gets `to_dict()`, `from_dict()` classmethods.
 `DataPackage` gets `to_prompt_text()` that formats data as structured text for Claude prompts.
 `DataPackage` also gets `data_completeness_score: int` (0-100) computed from which data sources returned successfully.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
-- [ ] **Step 5: Create tests/conftest.py (initial fixtures)**
+- [x] **Step 5: Create tests/conftest.py (initial fixtures)**
 
 Create shared test fixtures needed across the test suite:
 - `sample_price_data` fixture — minimal `pd.DataFrame` with OHLCV columns
@@ -320,7 +320,7 @@ Create shared test fixtures needed across the test suite:
 
 This is created here because Task 2 defines the models these fixtures conform to, and Tasks 3-6 depend on them.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Define data models, serialization, and shared test fixtures"
 ```
@@ -335,9 +335,9 @@ git commit -m "Define data models, serialization, and shared test fixtures"
 - Create: `~/stock-analyst/src/data_sources/yahoo_finance.py`
 - Create: `~/stock-analyst/tests/test_yahoo_finance.py`
 
-- [ ] **Step 1: Write tests** — mock `yfinance.Ticker`, verify output shape matches model expectations
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement yahoo_finance.py**
+- [x] **Step 1: Write tests** — mock `yfinance.Ticker`, verify output shape matches model expectations
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement yahoo_finance.py**
 
 Functions:
 - `get_financial_statements(ticker) -> dict` (income, balance, cash flow — all available years)
@@ -345,14 +345,15 @@ Functions:
 - `get_price_history(ticker, period="1y") -> list[dict]`
 - `get_insider_transactions(ticker) -> list[dict]`
 - `get_institutional_holders(ticker) -> list[dict]`
+- `get_peer_data(ticker, industry, market_cap) -> list[dict]` *(added — was missing from plan)*
 
 Each function: try/except, return partial data + warnings on failure.
 
 **Resilience note:** `yfinance` is an unofficial scraper that breaks periodically when Yahoo changes their site. Every function must return gracefully with a warning on failure (never crash). If yfinance is fully down, the Data Collector still produces a DataPackage using SEC EDGAR data — the analysis degrades gracefully with a lower Data Completeness score and a `LimitationNote` warning, consistent with the PRD's graceful degradation philosophy.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Write one integration test** (marked `@pytest.mark.integration`) that fetches real AAPL data
-- [ ] **Step 6: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Write one integration test** (marked `@pytest.mark.integration`) that fetches real AAPL data
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Add Yahoo Finance data source"
 ```
