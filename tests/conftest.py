@@ -1,4 +1,6 @@
 """Shared test fixtures for the stock-analyst test suite."""
+from unittest.mock import MagicMock
+
 import pytest
 import pandas as pd
 from src.models import (
@@ -179,3 +181,17 @@ def sample_investment_thesis(sample_financial_analysis):
             ],
         ),
     )
+
+
+# --- Claude / Agent Fixtures ---
+
+
+@pytest.fixture
+def mock_claude_client():
+    """MagicMock simulating anthropic.Anthropic() with configurable response."""
+    client = MagicMock()
+    client.messages.create.return_value = MagicMock(
+        content=[MagicMock(text='{}')],
+        usage=MagicMock(input_tokens=0, output_tokens=0),
+    )
+    return client
