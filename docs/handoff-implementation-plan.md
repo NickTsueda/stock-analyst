@@ -424,15 +424,15 @@ git commit -m "Add FRED macro data source"
 **Files:**
 - Create: `~/stock-analyst/src/agents/base.py`
 
-- [ ] **Step 1: Write tests** — JSON extraction from various response formats (raw JSON, markdown-fenced JSON), retry behavior
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Add Claude fixtures to existing tests/conftest.py**
+- [x] **Step 1: Write tests** — JSON extraction from various response formats (raw JSON, markdown-fenced JSON), retry behavior
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Add Claude fixtures to existing tests/conftest.py**
 
 Append to the existing `conftest.py` (created in Task 2):
 - `mock_claude_client` fixture — `MagicMock` simulating `anthropic.Anthropic()` with configurable response
 - `sample_agent_response` fixture — minimal structured agent output dict
 
-- [ ] **Step 4: Implement base.py**
+- [x] **Step 4: Implement base.py**
 ```python
 class BaseAgent:
     def __init__(self, client: anthropic.Anthropic, model: str = None):
@@ -448,8 +448,8 @@ class BaseAgent:
 
 Uses prompt caching (`cache_control`) on system prompts. Logs token counts and cost estimates.
 
-- [ ] **Step 5: Run tests to verify they pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 5: Run tests to verify they pass**
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Add base agent class with Claude calling infrastructure"
 ```
@@ -460,16 +460,16 @@ git commit -m "Add base agent class with Claude calling infrastructure"
 - Create: `~/stock-analyst/src/agents/data_collector.py`
 - Create: `~/stock-analyst/tests/test_data_collector.py`
 
-- [ ] **Step 1: Write tests** — mock all data sources, verify DataPackage assembly, verify warnings for missing data
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement data_collector.py**
+- [x] **Step 1: Write tests** — mock all data sources, verify DataPackage assembly, verify warnings for missing data
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement data_collector.py**
 
 `DataCollectorAgent.run(ticker: str) -> DataPackage` — calls all data sources sequentially, assembles results, populates warnings, computes `data_completeness_score`. Does NOT call Claude.
 
 **Note:** `DataCollectorAgent` is a standalone class — it does NOT extend `BaseAgent` since it never calls Claude.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add Data Collector agent"
 ```

@@ -93,20 +93,65 @@ This file tracks what was built in each build session, decisions made during imp
 
 ### What the Next Session Should Do
 
-Session 3: Build Phase 2 — Agents + UI. Per the implementation plan:
-1. Task 6: Base Agent class (`_call_claude`, `_parse_json_response`, retry logic, prompt caching)
-2. Task 7: Data Collector Agent (assembles DataPackage from all data sources)
-3. Task 8: Financial Analyst Agent (chain-of-thought analysis with UChicago methodology)
-4. Task 9: Thesis Builder Agent (narrative synthesis + self-critique → RevisionRequest)
-5. Task 10: Orchestrator Agent (pipeline coordination + revision loop + confidence score post-processing)
-6. Tasks 11-13: Streamlit UI (charts, components, main app)
-7. Tasks 14-15: Error handling + README
+Continue Session 3: Build Phase 2. Tasks 6-7 are done; Tasks 8-15 remain.
+
+---
+
+## Session 3: Build Phase 2 — Agents + UI (Partial)
+
+**Date:** 2026-03-15
+**Status:** In progress (paused after Task 7)
+**Branch:** `build/phase-1-foundation` (worktree at `.worktrees/build-phase-1/`)
+
+### What Was Built
+
+#### Task 6: Base Agent (DONE)
+- `src/agents/base.py` — `BaseAgent` class with:
+  - `_call_claude(system, user, max_tokens)` — sends messages with prompt caching (`cache_control: ephemeral`), retries up to 2x on rate limit or JSON parse failure
+  - `_parse_json_response(text)` — extracts JSON from raw, markdown-fenced (```json), bare-fenced (```), or embedded-in-prose responses
+  - Token usage and cost logging per call
+- `tests/test_base_agent.py` — 13 tests covering JSON parsing (6 cases) and Claude calling (7 cases: success, retry on parse failure, retry exhaustion, rate limit retry, prompt caching, model config, token logging)
+- `tests/conftest.py` — added `mock_claude_client` fixture
+
+#### Task 7: Data Collector Agent (DONE)
+- `src/agents/data_collector.py` — `DataCollectorAgent` class (standalone, does NOT extend `BaseAgent`):
+  - `run(ticker) -> DataPackage` — orchestrates all three data sources
+  - EDGAR primary for insider data, yfinance fallback (per design doc: "Do not merge — use one source")
+  - Falls back to XBRL-derived financials when yfinance financials unavailable
+  - Computes `company_predictability_score` from quarterly revenue coefficient of variation (CV)
+  - Predictability: 5 CV bands with linear interpolation (CV < 0.05 → 90-100, ... , CV > 0.50 → 10-29)
+  - Defaults to 50 when < 8 quarters available
+  - Collects warnings from all sources into `DataPackage.warnings`
+- `tests/test_data_collector.py` — 19 tests covering:
+  - Happy path (8 tests: package assembly, market data, financials, macro, insider priority, completeness score, peers, filing text)
+  - Graceful degradation (5 tests: yfinance failure, EDGAR failure, FRED failure, total failure, warning propagation)
+  - Predictability scoring (4 tests: stable, volatile, insufficient data, no data)
+  - Insider data priority (2 tests: EDGAR-to-yfinance fallback, no data at all)
+
+### Test Results (Current)
+
+- **88 tests pass, 1 skip, 0 fail**
+- Breakdown: 15 models + 14 Yahoo Finance + 17 SEC EDGAR + 7 FRED + 13 Base Agent + 19 Data Collector + 3 integration
+
+### Decisions Made
+
+1. **`_company_name` stored as instance attribute** during `_fetch_market_data` — extracted from yfinance's `company_name` field before building `MarketData` (which doesn't have that field).
+2. **Data Completeness score note** — when EDGAR fails but yfinance financials succeed, score still gets the EDGAR 35pts because `DataPackage.data_completeness_score` checks `self.financials is not None`. This is by design: the score measures data availability, not source provenance.
+3. **Predictability score uses `statistics.stdev`** (sample standard deviation) — appropriate for revenue samples since we're estimating population volatility from a sample of quarters.
+
+### What the Next Session Should Do
+
+Continue from Task 8:
+1. Task 8: Financial Analyst Agent (chain-of-thought analysis with UChicago methodology)
+2. Task 9: Thesis Builder Agent (narrative synthesis + self-critique → RevisionRequest)
+3. Task 10: Orchestrator Agent (pipeline coordination + revision loop + confidence score post-processing)
+4. Tasks 11-13: Streamlit UI (charts, components, main app)
+5. Tasks 14-15: Error handling + README
 
 ### How to Resume
 
 ```bash
 cd ~/stock-analyst/.worktrees/build-phase-1
 source .venv/bin/activate
-python -m pytest tests/ -v -m "not integration"  # Should show 50 passing
-python -m pytest tests/ -v -m integration         # Should show 6 passing, 1 skipped
+pytest tests/ -v  # Should show 88 passing, 1 skipped
 ```
