@@ -19,3 +19,6 @@ venv/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Worktrees
+.worktrees/
