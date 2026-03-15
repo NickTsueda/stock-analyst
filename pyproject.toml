@@ -20,3 +20,8 @@ dev = ["pytest>=8.0", "pytest-mock>=3.14"]
 [build-system]
 requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: tests that hit real external APIs (deselect with '-m not integration')",
+]
