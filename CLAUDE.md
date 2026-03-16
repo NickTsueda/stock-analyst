@@ -21,7 +21,7 @@ Options:
 - Session 4: QA (reviewing and fixing)
 - Complete
 
-Current: **Session 3: Build — Phase 2 (Agents + UI)**
+Current: **Bug Fix Sessions (before Phase 2)**
 
 ## Session Start Ritual
 
@@ -29,10 +29,11 @@ Before doing anything in this session, read the following documents in order:
 
 1. /docs/prd.md
 2. /docs/design.md
-3. /docs/handoff-requirements.md
-4. /docs/handoff-design.md
-5. /docs/handoff-implementation-plan.md
-6. /docs/handoff-build.md
+3. /docs/bugs.md
+4. /docs/handoff-requirements.md
+5. /docs/handoff-design.md
+6. /docs/handoff-implementation-plan.md
+7. /docs/handoff-build.md
 
 After reading, summarize:
 - What has been built so far
@@ -42,6 +43,52 @@ After reading, summarize:
 Do not begin any work until I confirm your summary is accurate.
 
 Note: Skip any file that is empty or does not yet exist.
+
+## Bug Fix Sessions
+
+**Before starting Phase 2 (Agents + UI), all Data Collector bugs must be fixed.** The data quality is critical — the Financial Analyst and Thesis Builder agents reason over this data, so wrong inputs produce wrong investment theses.
+
+**Bug tracker:** `docs/bugs.md` (canonical list with file locations and impact)
+
+**Test script:** `python run_collector.py AAPL` — run after each fix to verify output against real-world values.
+
+### Debugging Approach
+
+Use the `superpowers:systematic-debugging` skill for each bug. Do NOT guess-and-fix. The process is:
+1. Investigate root cause (trace data flow, read error messages, check how yfinance/EDGAR actually return data)
+2. Find working examples or reference implementations
+3. Form a hypothesis, test minimally
+4. Write a failing test, then fix, then verify output against known real-world values
+
+### Priority Order
+
+Fix in this order (most dangerous first — bugs that feed Claude actively wrong data):
+
+1. **Bug 3: SEC filing text returns stubs** — MD&A is ~64 chars (a TOC entry, not content). Risk Factors returns a page number. The whole thesis depends on qualitative filing data.
+2. **Bug 2: Insider activity miscounts** — All transactions counted as "buys" (AAPL: 75/75, MSFT: 99/99). The `net_buys` field equals total transaction count instead of buy/sell delta.
+3. **Bug 4: Institutional ownership always 0.0%** — AAPL and MSFT are ~60%+ institutionally held. The yfinance field isn't being read correctly.
+4. **Bug 5: Predictability score always 50** — Default value returned regardless of actual revenue volatility. The coefficient of variation computation isn't working.
+5. **Bug 1: Peer discovery is a stub** — `_find_peers_from_screener()` never populates `peer_tickers`. Always returns empty list.
+6. **Bug 6: Balance sheet includes stale NaN year** — Minor cleanup, wastes tokens.
+
+### Verification
+
+After fixing a bug, verify the output makes sense against reality:
+- AAPL institutional ownership should be ~60%
+- MSFT institutional ownership should be ~70%
+- Insider transactions should have both buys AND sells
+- MD&A should be thousands of characters of actual prose
+- Predictability scores should differ between volatile and stable companies
+
+### Session Structure
+
+One bug per session. Each session should:
+1. Read `docs/bugs.md` for the bug description
+2. Investigate root cause using systematic debugging
+3. Fix and write/update tests
+4. Run `python run_collector.py <TICKER>` to verify
+5. Update `docs/bugs.md` to mark the bug as fixed
+6. Update this priority list if needed
 
 ## Implementation Plan
 
