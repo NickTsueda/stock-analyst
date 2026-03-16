@@ -167,7 +167,7 @@ User Input (ticker)
 - Create: `~/stock-analyst/src/__init__.py`, `src/agents/__init__.py`, `src/data_sources/__init__.py`, `src/ui/__init__.py`, `tests/__init__.py`
 - Create: `~/stock-analyst/src/config.py`
 
-- [ ] **Step 1: Create pyproject.toml and code structure**
+- [x] **Step 1: Create pyproject.toml and code structure**
 ```toml
 [project]
 name = "stock-analyst"
@@ -193,9 +193,9 @@ requires = ["setuptools>=75.0"]
 build-backend = "setuptools.build_meta"
 ```
 
-- [ ] **Step 2: Create .gitignore, .env.example, all init.py files**
+- [x] **Step 2: Create .gitignore, .env.example, all init.py files**
 
-- [ ] **Step 3: Create src/config.py**
+- [x] **Step 3: Create src/config.py**
 ```python
 import os
 from dotenv import load_dotenv
@@ -218,10 +218,10 @@ class Settings:
 settings = Settings()
 ```
 
-- [ ] **Step 4: Verify setup**
+- [x] **Step 4: Verify setup**
 Run: `cd ~/stock-analyst && pip install -e ".[dev]" && python -c "from src.config import settings; print('OK')"`
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 ```bash
 git add -A && git commit -m "Initialize project structure with dependencies and config"
 ```
@@ -233,7 +233,7 @@ git add -A && git commit -m "Initialize project structure with dependencies and 
 - Create: `~/stock-analyst/tests/test_models.py`
 - Create: `~/stock-analyst/tests/conftest.py` (initial shared fixtures)
 
-- [ ] **Step 1: Write test for model serialization**
+- [x] **Step 1: Write test for model serialization**
 ```python
 def test_data_package_round_trip():
     """DataPackage can serialize to dict and back."""
@@ -250,9 +250,9 @@ def test_data_package_to_prompt_text():
     assert pkg.ticker in text
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
-- [ ] **Step 3: Implement models.py**
+- [x] **Step 3: Implement models.py**
 
 Key dataclasses:
 - `FinancialStatements` — multi-year income/balance/cash flow
@@ -309,9 +309,9 @@ Each major model gets `to_dict()`, `from_dict()` classmethods.
 `DataPackage` gets `to_prompt_text()` that formats data as structured text for Claude prompts.
 `DataPackage` also gets `data_completeness_score: int` (0-100) computed from which data sources returned successfully.
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 
-- [ ] **Step 5: Create tests/conftest.py (initial fixtures)**
+- [x] **Step 5: Create tests/conftest.py (initial fixtures)**
 
 Create shared test fixtures needed across the test suite:
 - `sample_price_data` fixture — minimal `pd.DataFrame` with OHLCV columns
@@ -320,7 +320,7 @@ Create shared test fixtures needed across the test suite:
 
 This is created here because Task 2 defines the models these fixtures conform to, and Tasks 3-6 depend on them.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Define data models, serialization, and shared test fixtures"
 ```
@@ -335,9 +335,9 @@ git commit -m "Define data models, serialization, and shared test fixtures"
 - Create: `~/stock-analyst/src/data_sources/yahoo_finance.py`
 - Create: `~/stock-analyst/tests/test_yahoo_finance.py`
 
-- [ ] **Step 1: Write tests** — mock `yfinance.Ticker`, verify output shape matches model expectations
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement yahoo_finance.py**
+- [x] **Step 1: Write tests** — mock `yfinance.Ticker`, verify output shape matches model expectations
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement yahoo_finance.py**
 
 Functions:
 - `get_financial_statements(ticker) -> dict` (income, balance, cash flow — all available years)
@@ -345,14 +345,15 @@ Functions:
 - `get_price_history(ticker, period="1y") -> list[dict]`
 - `get_insider_transactions(ticker) -> list[dict]`
 - `get_institutional_holders(ticker) -> list[dict]`
+- `get_peer_data(ticker, industry, market_cap) -> list[dict]` *(added — was missing from plan)*
 
 Each function: try/except, return partial data + warnings on failure.
 
 **Resilience note:** `yfinance` is an unofficial scraper that breaks periodically when Yahoo changes their site. Every function must return gracefully with a warning on failure (never crash). If yfinance is fully down, the Data Collector still produces a DataPackage using SEC EDGAR data — the analysis degrades gracefully with a lower Data Completeness score and a `LimitationNote` warning, consistent with the PRD's graceful degradation philosophy.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Write one integration test** (marked `@pytest.mark.integration`) that fetches real AAPL data
-- [ ] **Step 6: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Write one integration test** (marked `@pytest.mark.integration`) that fetches real AAPL data
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Add Yahoo Finance data source"
 ```
@@ -363,9 +364,9 @@ git commit -m "Add Yahoo Finance data source"
 - Create: `~/stock-analyst/src/data_sources/sec_edgar.py`
 - Create: `~/stock-analyst/tests/test_sec_edgar.py`
 
-- [ ] **Step 1: Write tests** — mock HTTP responses with sample SEC JSON, test filing text extraction with real HTML fixture
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement sec_edgar.py**
+- [x] **Step 1: Write tests** — mock HTTP responses with sample SEC JSON, test filing text extraction with real HTML fixture
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement sec_edgar.py**
 
 Functions:
 - `get_cik_from_ticker(ticker) -> str` — uses SEC company tickers JSON
@@ -382,8 +383,8 @@ Functions:
 
 > **Hybrid approach (2026-03-13):** Uses XBRL API for reliable structured financial numbers + BeautifulSoup-cleaned HTML for qualitative text. Even if text extraction is flaky, the analysis always works because XBRL data is rock-solid. Added `beautifulsoup4` to dependencies.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add SEC EDGAR data source with filing text extraction"
 ```
@@ -394,14 +395,14 @@ git commit -m "Add SEC EDGAR data source with filing text extraction"
 - Create: `~/stock-analyst/src/data_sources/fred.py`
 - Create: `~/stock-analyst/tests/test_fred.py`
 
-- [ ] **Step 1: Write tests** — mock `fredapi.Fred`
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement fred.py**
+- [x] **Step 1: Write tests** — mock `fredapi.Fred`
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement fred.py**
 
 Function: `get_macro_context() -> dict` — fetches latest values for FEDFUNDS, GDPC1, UNRATE, CPIAUCSL, T10Y2Y. Calculates YoY changes where appropriate.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add FRED macro data source"
 ```
@@ -410,9 +411,9 @@ git commit -m "Add FRED macro data source"
 
 ### Session 2 Handoff
 
-- [ ] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
-- [ ] **Update CLAUDE.md stage to "Build — Phase 2"**
-- [ ] **Commit handoff docs**
+- [x] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
+- [x] **Update CLAUDE.md stage to "Build — Phase 2"**
+- [x] **Commit handoff docs**
 
 ---
 
@@ -423,15 +424,15 @@ git commit -m "Add FRED macro data source"
 **Files:**
 - Create: `~/stock-analyst/src/agents/base.py`
 
-- [ ] **Step 1: Write tests** — JSON extraction from various response formats (raw JSON, markdown-fenced JSON), retry behavior
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Add Claude fixtures to existing tests/conftest.py**
+- [x] **Step 1: Write tests** — JSON extraction from various response formats (raw JSON, markdown-fenced JSON), retry behavior
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Add Claude fixtures to existing tests/conftest.py**
 
 Append to the existing `conftest.py` (created in Task 2):
 - `mock_claude_client` fixture — `MagicMock` simulating `anthropic.Anthropic()` with configurable response
 - `sample_agent_response` fixture — minimal structured agent output dict
 
-- [ ] **Step 4: Implement base.py**
+- [x] **Step 4: Implement base.py**
 ```python
 class BaseAgent:
     def __init__(self, client: anthropic.Anthropic, model: str = None):
@@ -447,8 +448,8 @@ class BaseAgent:
 
 Uses prompt caching (`cache_control`) on system prompts. Logs token counts and cost estimates.
 
-- [ ] **Step 5: Run tests to verify they pass**
-- [ ] **Step 6: Commit**
+- [x] **Step 5: Run tests to verify they pass**
+- [x] **Step 6: Commit**
 ```bash
 git commit -m "Add base agent class with Claude calling infrastructure"
 ```
@@ -459,16 +460,16 @@ git commit -m "Add base agent class with Claude calling infrastructure"
 - Create: `~/stock-analyst/src/agents/data_collector.py`
 - Create: `~/stock-analyst/tests/test_data_collector.py`
 
-- [ ] **Step 1: Write tests** — mock all data sources, verify DataPackage assembly, verify warnings for missing data
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement data_collector.py**
+- [x] **Step 1: Write tests** — mock all data sources, verify DataPackage assembly, verify warnings for missing data
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement data_collector.py**
 
 `DataCollectorAgent.run(ticker: str) -> DataPackage` — calls all data sources sequentially, assembles results, populates warnings, computes `data_completeness_score`. Does NOT call Claude.
 
 **Note:** `DataCollectorAgent` is a standalone class — it does NOT extend `BaseAgent` since it never calls Claude.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add Data Collector agent"
 ```
