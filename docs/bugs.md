@@ -11,10 +11,12 @@
 **Issue:** AAPL shows "Net buys: 75, Transactions: 75" and MSFT shows "Net buys: 99, Transactions: 99". It's impossible that 100% of insider transactions are buys — the `net_buys` field is just the total transaction count, not the buy/sell delta.
 **Impact:** Claude will be told insiders are massively buying when they're likely selling — completely misleading for investment analysis.
 
-## Bug 3: SEC filing text extraction returns stubs
+## Bug 3: SEC filing text extraction returns stubs — FIXED
 **File:** `src/data_sources/sec_edgar.py` (filing text extraction)
-**Issue:** MD&A sections are returning ~64 characters (e.g., "and Analysis of Financial Condition and Results of Operations 35"). This is a table-of-contents entry, not the actual MD&A text. Risk Factors returns just "5" or "16" (a page number).
-**Impact:** The Financial Analyst agent gets no actual qualitative filing content to reason over. This is a critical data gap — the UChicago paper's approach relies on financial statement analysis, and MD&A provides key management context.
+**Issue:** MD&A sections were returning ~64 characters (a TOC entry). Risk Factors returned just a page number.
+**Root cause:** `_extract_section()` used `pattern.search()` which found the first match — always the Table of Contents entry. The TOC contains short lines like "Item 7. Management's Discussion... 21" followed immediately by "Item 7A.", yielding ~64 chars.
+**Fix:** Changed `_extract_section()` to use `finditer()` and skip any extraction shorter than 500 chars (TOC entries and cross-references). The actual section content is always thousands of characters. Added `_MIN_SECTION_CHARS = 500` constant.
+**Verified:** AAPL and MSFT both return 15,000 chars of real prose for MD&A and Risk Factors. 2 new tests added, all 91 tests pass.
 
 ## Bug 4: Institutional ownership always shows 0.0%
 **File:** `src/data_sources/yahoo_finance.py` (institutional data fetching)
