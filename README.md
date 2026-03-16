@@ -100,6 +100,16 @@ SEC_EDGAR_EMAIL=your-email@example.com
 streamlit run app.py
 ```
 
+### Test the Data Pipeline
+
+You can run the Data Collector agent standalone to see the raw financial data it assembles:
+
+```bash
+python run_collector.py AAPL
+```
+
+This fetches data from all three sources (Yahoo Finance, SEC EDGAR, FRED) and outputs the structured markdown that gets passed to Claude for analysis. No Anthropic API key needed — the Data Collector doesn't use Claude.
+
 ## Project Structure
 
 ```
