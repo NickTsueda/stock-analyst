@@ -218,30 +218,32 @@ _RISK_END_PATTERNS = [
 
 _MAX_SECTION_CHARS = 15_000
 _FALLBACK_CHARS = 15_000
+_MIN_SECTION_CHARS = 500  # Sections shorter than this are TOC entries or cross-references
 
 
 def _extract_section(text: str, start_patterns: list, end_patterns: list) -> str:
-    """Extract text between start and end section markers."""
-    start_pos = None
+    """Extract text between start and end section markers.
+
+    Iterates through all matches, skipping short results (TOC entries,
+    cross-references) until finding the actual section content.
+    """
     for pattern in start_patterns:
-        match = pattern.search(text)
-        if match:
+        for match in pattern.finditer(text):
             start_pos = match.end()
-            break
 
-    if start_pos is None:
-        return ""
+            # Find the end boundary
+            end_pos = len(text)
+            for end_pattern in end_patterns:
+                end_match = end_pattern.search(text, start_pos)
+                if end_match:
+                    end_pos = min(end_pos, end_match.start())
+                    break
 
-    # Find the end boundary
-    end_pos = len(text)
-    for pattern in end_patterns:
-        match = pattern.search(text, start_pos)
-        if match:
-            end_pos = min(end_pos, match.start())
-            break
+            section = text[start_pos:end_pos].strip()
+            if len(section) >= _MIN_SECTION_CHARS:
+                return section[:_MAX_SECTION_CHARS]
 
-    section = text[start_pos:end_pos].strip()
-    return section[:_MAX_SECTION_CHARS]
+    return ""
 
 
 def get_filing_text(filing_url: str) -> tuple[dict, list[str]]:

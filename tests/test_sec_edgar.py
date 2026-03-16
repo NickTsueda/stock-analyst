@@ -115,16 +115,62 @@ SAMPLE_FILING_HTML = """
 <p>Some preamble text about the company.</p>
 <p><b>Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</b></p>
 <p>The following discussion should be read in conjunction with the consolidated financial statements.</p>
-<p>Revenue increased 2% year over year driven by strong services growth.</p>
-<p>Operating expenses grew 5% reflecting continued investment in R&D.</p>
+<p>Revenue increased 2% year over year driven by strong services growth. The Company's total net revenue was $383.3 billion for fiscal year 2024, compared to $383.9 billion for fiscal year 2023. The year-over-year performance reflects the continued strength of the Services segment.</p>
+<p>Operating expenses grew 5% reflecting continued investment in R&D. Research and development expense was $31.4 billion, an increase of 6% year over year. Selling, general and administrative expense was $27.5 billion, an increase of 4%.</p>
+<p>Gross margin improved to 46.2% from 44.1% in the prior year, driven by a favorable shift toward higher-margin Services revenue. The Company continues to invest heavily in innovation while maintaining strong profitability.</p>
 <p><b>Item 7A. Quantitative and Qualitative Disclosures About Market Risk</b></p>
 <p>Interest rate risk information here.</p>
 <p><b>Item 1A. Risk Factors</b></p>
-<p>The Company is subject to various risks and uncertainties.</p>
-<p>Global economic conditions could materially adversely affect the Company.</p>
-<p>Supply chain disruptions could impact product availability.</p>
+<p>The Company is subject to various risks and uncertainties that could materially affect its business and financial results. These risks include, but are not limited to, the factors described below.</p>
+<p>Global economic conditions could materially adversely affect the Company. Adverse macroeconomic conditions, including inflation, slower growth, or recession, in the United States and internationally could negatively affect demand for the Company's products and services. The Company's operations span numerous countries around the world.</p>
+<p>Supply chain disruptions could impact product availability. The Company depends on component and product manufacturing and logistical services provided by outsourcing partners, many of which are located outside the U.S. Disruptions to the supply chain could materially impact the Company's ability to deliver products on time.</p>
+<p>The Company faces intense competition in its markets. The technology industry is characterized by rapid innovation and disruption. If the Company fails to compete effectively, its business and financial results could be materially adversely affected.</p>
 <p><b>Item 2. Properties</b></p>
 <p>Company headquarters info.</p>
+</body>
+</html>
+"""
+
+
+# Realistic 10-K with TOC before actual sections (reproduces Bug 3)
+SAMPLE_FILING_HTML_WITH_TOC = """
+<html>
+<body>
+<h1>APPLE INC. FORM 10-K</h1>
+<p>TABLE OF CONTENTS</p>
+<table>
+<tr><td>Part I</td></tr>
+<tr><td>Item 1. Business</td><td>1</td></tr>
+<tr><td>Item 1A. Risk Factors</td><td>5</td></tr>
+<tr><td>Item 1B. Unresolved Staff Comments</td><td>17</td></tr>
+<tr><td>Part II</td></tr>
+<tr><td>Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</td><td>21</td></tr>
+<tr><td>Item 7A. Quantitative and Qualitative Disclosures About Market Risk</td><td>35</td></tr>
+<tr><td>Item 8. Financial Statements and Supplementary Data</td><td>36</td></tr>
+</table>
+
+<p>Part I</p>
+<p><b>Item 1A. Risk Factors</b></p>
+<p>The following summarizes factors that could have a material adverse effect on the Company's business, financial condition, results of operations, or stock price. These risk factors should be considered carefully.</p>
+<p>The Company's products and services face intense competition. The technology industry is subject to rapid change, and the Company must continually introduce new products, services, and technologies to remain competitive. If the Company is unable to compete effectively, its financial results could be materially adversely affected.</p>
+<p>Global economic conditions could negatively affect the Company's business. Adverse macroeconomic conditions, including inflation, slower growth, or recession could cause consumers and businesses to reduce spending on the Company's products and services.</p>
+<p>The Company depends on component and product manufacturing and logistical services provided by outsourcing partners, many of which are located outside of the U.S. Disruptions could materially adversely affect the Company's business.</p>
+<p>The Company is exposed to credit risk on its trade accounts receivable, vendor non-trade receivables, and prepayments related to long-term supply agreements.</p>
+<p>Changes in tax rates, trade agreements, or the adoption of new tax legislation could affect future results.</p>
+<p><b>Item 1B. Unresolved Staff Comments</b></p>
+<p>None.</p>
+
+<p>Part II</p>
+<p><b>Item 7. Management's Discussion and Analysis of Financial Condition and Results of Operations</b></p>
+<p>The following discussion should be read in conjunction with the consolidated financial statements and accompanying notes included in this Form 10-K. This section provides a narrative analysis of the Company's financial condition and results of operations for the fiscal years presented.</p>
+<p>Revenue for fiscal year 2024 was $383.3 billion, an increase of 2% compared to fiscal year 2023. The growth was primarily driven by higher net sales of Services, partially offset by lower net sales of iPhone, Mac, and iPad. Services revenue reached $96.2 billion, representing a 13% increase year-over-year, driven by growth across all Services categories including advertising, the App Store, and cloud services.</p>
+<p>Products revenue was $287.1 billion, a decrease of 1% compared to the prior year. iPhone revenue was $201.2 billion, relatively flat year-over-year. Mac revenue was $29.9 billion, an increase of 2%. iPad revenue was $26.7 billion, a decrease of 6%.</p>
+<p>Gross margin was 46.2%, an increase from 44.1% in the prior year, driven by a favorable shift in the product and services mix toward Services, which carry higher margins. Operating expenses were $58.9 billion, an increase of 5%, driven by investments in research and development and advertising.</p>
+<p>The Company returned over $100 billion to shareholders during the year through dividends and share repurchases. Cash and cash equivalents at end of year were $29.9 billion. Total debt was $97.0 billion, a decrease from $111.1 billion in the prior year, reflecting debt repayments.</p>
+<p><b>Item 7A. Quantitative and Qualitative Disclosures About Market Risk</b></p>
+<p>Interest rate and foreign exchange risk information here.</p>
+<p><b>Item 8. Financial Statements and Supplementary Data</b></p>
+<p>Financial statements begin here.</p>
 </body>
 </html>
 """
@@ -283,6 +329,26 @@ class TestGetFilingText:
         result, warnings = get_filing_text("https://www.sec.gov/Archives/edgar/data/0000320193/filing.htm")
         # Should fall back to raw text
         assert result["mda_text"] != "" or result["risk_factors_text"] != "" or len(warnings) > 0
+
+    @patch("src.data_sources.sec_edgar.time.sleep")
+    @patch("src.data_sources.sec_edgar.requests.get")
+    def test_skips_toc_entries_for_mda(self, mock_get, mock_sleep):
+        """Bug 3: Filing with TOC should extract actual MD&A, not the TOC entry."""
+        mock_get.return_value = _mock_response(text=SAMPLE_FILING_HTML_WITH_TOC)
+        result, warnings = get_filing_text("https://www.sec.gov/Archives/edgar/data/0000320193/filing.htm")
+        # Must contain actual prose, not a page number or short TOC snippet
+        assert len(result["mda_text"]) > 500
+        assert "Revenue for fiscal year" in result["mda_text"]
+
+    @patch("src.data_sources.sec_edgar.time.sleep")
+    @patch("src.data_sources.sec_edgar.requests.get")
+    def test_skips_toc_entries_for_risk_factors(self, mock_get, mock_sleep):
+        """Bug 3: Filing with TOC should extract actual Risk Factors, not page number."""
+        mock_get.return_value = _mock_response(text=SAMPLE_FILING_HTML_WITH_TOC)
+        result, warnings = get_filing_text("https://www.sec.gov/Archives/edgar/data/0000320193/filing.htm")
+        # Must contain actual risk factor prose, not just "5"
+        assert len(result["risk_factors_text"]) > 500
+        assert "material adverse effect" in result["risk_factors_text"]
 
     @patch("src.data_sources.sec_edgar.time.sleep")
     @patch("src.data_sources.sec_edgar.requests.get")
