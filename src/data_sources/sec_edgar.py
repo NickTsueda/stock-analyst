@@ -319,8 +319,11 @@ def get_insider_transactions(cik: str, max_filings: int = 20) -> tuple[list[dict
         for i in range(len(accessions)):
             if forms[i] == "4":
                 acc_formatted = accessions[i].replace("-", "")
+                # primaryDocument often has an XSLT prefix (e.g. "xslF345X05/form4.xml")
+                # that serves rendered HTML. Strip to get the raw XML filename.
+                doc_name = docs[i].split("/")[-1] if "/" in docs[i] else docs[i]
                 filing_url = (
-                    f"{_ARCHIVES_URL}/{cik.lstrip('0')}/{acc_formatted}/{docs[i]}"
+                    f"{_ARCHIVES_URL}/{cik.lstrip('0')}/{acc_formatted}/{doc_name}"
                 )
                 form4_urls.append((filing_url, dates[i]))
                 if len(form4_urls) >= max_filings:

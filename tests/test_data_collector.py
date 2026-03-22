@@ -24,6 +24,7 @@ STUB_MARKET_DATA = {
     "sector": "Technology",
     "industry": "Consumer Electronics",
     "company_name": "Apple Inc.",
+    "held_pct_institutions": 0.6526,
 }
 
 STUB_FINANCIALS = {
@@ -87,7 +88,7 @@ STUB_MACRO = {
 def _patch_all_sources():
     """Return a dict of patch context managers for all data source functions."""
     return {
-        "market_data": patch("src.agents.data_collector.yf.get_market_data", return_value=(STUB_MARKET_DATA, [])),
+        "market_data": patch("src.agents.data_collector.yf.get_market_data", side_effect=lambda *a, **k: (dict(STUB_MARKET_DATA), [])),
         "financials": patch("src.agents.data_collector.yf.get_financial_statements", return_value=(STUB_FINANCIALS, [])),
         "price_history": patch("src.agents.data_collector.yf.get_price_history", return_value=(STUB_PRICE_HISTORY, [])),
         "insider_yf": patch("src.agents.data_collector.yf.get_insider_transactions", return_value=(STUB_INSIDER_TXNS_YF, [])),
@@ -204,6 +205,40 @@ class TestDataCollectorHappyPath:
 
             assert result.filing_text is not None
             assert "Management discussion" in result.filing_text.mda_text
+
+    def test_institutional_ownership_uses_info_total(self):
+        """institutional_ownership_pct uses heldPercentInstitutions from info, not top-10 sum."""
+        patches = _patch_all_sources()
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+
+            assert result.institutional is not None
+            # STUB_MARKET_DATA has held_pct_institutions=0.6526 → 65.26%
+            assert result.institutional.institutional_ownership_pct == 65.26
+
+    def test_institutional_ownership_falls_back_to_sum(self):
+        """If heldPercentInstitutions is missing, falls back to summing top holders."""
+        patches = _patch_all_sources()
+        # Override market data to not include held_pct_institutions
+        market_data_no_inst = {k: v for k, v in STUB_MARKET_DATA.items() if k != "held_pct_institutions"}
+        patches["market_data"] = patch(
+            "src.agents.data_collector.yf.get_market_data",
+            return_value=(market_data_no_inst, []),
+        )
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+
+            assert result.institutional is not None
+            # STUB_INSTITUTIONAL has one holder with pct=8.5
+            assert result.institutional.institutional_ownership_pct == 8.5
 
 
 class TestDataCollectorGracefulDegradation:
@@ -408,6 +443,62 @@ class TestInsiderDataSourcePriority:
 
             assert result.insider_activity is not None
             assert result.insider_activity.source == "yfinance"
+
+    def test_edgar_net_buys_counts_mixed_transactions(self):
+        """net_buys should be the delta: A=+1, D=-1, not total count."""
+        patches = _patch_all_sources()
+        mixed_txns = [
+            {"name": "Cook", "date": "2024-06-01", "shares": 60000, "price": 0, "acquired_or_disposed": "A"},
+            {"name": "Cook", "date": "2024-06-01", "shares": 30000, "price": 195.0, "acquired_or_disposed": "D"},
+            {"name": "Cook", "date": "2024-06-01", "shares": 10000, "price": 195.0, "acquired_or_disposed": "D"},
+        ]
+        patches["insider_edgar"] = patch(
+            "src.agents.data_collector.edgar.get_insider_transactions",
+            return_value=(mixed_txns, []),
+        )
+
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+
+            assert result.insider_activity is not None
+            assert result.insider_activity.source == "edgar"
+            # 1 buy - 2 sells = -1 (net selling)
+            assert result.insider_activity.net_buys == -1
+            assert len(result.insider_activity.transactions) == 3
+
+    def test_yfinance_fallback_handles_empty_type_field(self):
+        """yfinance insider data often has empty 'type' field — should not count all as buys."""
+        patches = _patch_all_sources()
+        patches["insider_edgar"] = patch(
+            "src.agents.data_collector.edgar.get_insider_transactions",
+            return_value=([], []),
+        )
+        yf_txns_empty_type = [
+            {"name": "Cook", "date": "2024-06-01", "type": "", "shares": 60000, "value": 0},
+            {"name": "Cook", "date": "2024-06-01", "type": "", "shares": 30000, "value": 5_850_000},
+            {"name": "Cook", "date": "2024-06-01", "type": "", "shares": 10000, "value": 1_950_000},
+        ]
+        patches["insider_yf"] = patch(
+            "src.agents.data_collector.yf.get_insider_transactions",
+            return_value=(yf_txns_empty_type, []),
+        )
+
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+
+            assert result.insider_activity is not None
+            assert result.insider_activity.source == "yfinance"
+            # With empty type fields, net_buys should NOT equal total count
+            # Transactions with value > 0 and empty type are likely sales
+            assert result.insider_activity.net_buys != len(yf_txns_empty_type)
 
     def test_no_insider_data_at_all(self):
         """When both EDGAR and yfinance have no insider data."""

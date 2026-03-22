@@ -103,6 +103,7 @@ def get_market_data(ticker: str) -> tuple[dict, list[str]]:
             "sector": info.get("sector", ""),
             "industry": info.get("industry", ""),
             "company_name": info.get("shortName") or info.get("longName", ""),
+            "held_pct_institutions": info.get("heldPercentInstitutions"),
         }, warnings
 
     except Exception as e:
@@ -184,10 +185,11 @@ def get_institutional_holders(ticker: str) -> tuple[list[dict], list[str]]:
 
         records = []
         for _, row in holders.iterrows():
+            pct_held = float(row.get("pctHeld", 0))
             records.append({
                 "name": str(row.get("Holder", "")),
                 "shares": int(row.get("Shares", 0)),
-                "pct": float(row.get("% Out", 0)),
+                "pct": round(pct_held * 100, 2),
             })
         return records, warnings
 

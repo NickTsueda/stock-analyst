@@ -390,6 +390,32 @@ class TestGetInsiderTransactions:
 
     @patch("src.data_sources.sec_edgar.time.sleep")
     @patch("src.data_sources.sec_edgar.requests.get")
+    def test_strips_xslt_prefix_from_form4_url(self, mock_get, mock_sleep):
+        """Form 4 primaryDocument often has XSLT prefix (xslF345X05/) that
+        points to HTML, not raw XML. We must strip it to get parseable XML."""
+        submissions_with_form4 = {
+            "cik": "0000320193",
+            "filings": {
+                "recent": {
+                    "accessionNumber": ["0000320193-24-000200"],
+                    "filingDate": ["2024-04-02"],
+                    "form": ["4"],
+                    "primaryDocument": ["xslF345X05/wk-form4_123456.xml"],
+                }
+            },
+        }
+        mock_get.side_effect = [
+            _mock_response(json_data=submissions_with_form4),
+            _mock_response(text=SAMPLE_FORM4_XML),
+        ]
+        get_insider_transactions("0000320193")
+        # The second call should fetch the raw XML (without xsl prefix)
+        form4_call_url = mock_get.call_args_list[1][0][0]
+        assert "xslF345X05" not in form4_call_url
+        assert "wk-form4_123456.xml" in form4_call_url
+
+    @patch("src.data_sources.sec_edgar.time.sleep")
+    @patch("src.data_sources.sec_edgar.requests.get")
     def test_handles_no_form4s(self, mock_get, mock_sleep):
         submissions_no_form4 = {
             "cik": "0000320193",

@@ -85,7 +85,7 @@ def mock_ticker():
         {
             "Holder": ["Vanguard Group", "BlackRock"],
             "Shares": [1_300_000_000, 1_100_000_000],
-            "% Out": [0.085, 0.072],
+            "pctHeld": [0.085, 0.072],
         }
     )
 
@@ -167,6 +167,15 @@ class TestGetInstitutionalHolders:
         result, warnings = get_institutional_holders("AAPL")
         assert len(result) > 0
         assert "name" in result[0]
+
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    def test_pct_held_converted_to_percentage(self, mock_yf, mock_ticker):
+        """pctHeld from yfinance is a decimal (e.g. 0.085 = 8.5%). We convert to percentage."""
+        mock_yf.return_value = mock_ticker
+        result, _ = get_institutional_holders("AAPL")
+        # Mock has pctHeld=[0.085, 0.072] → should become [8.5, 7.2]
+        assert result[0]["pct"] == 8.5
+        assert result[1]["pct"] == 7.2
 
 
 class TestGetPeerData:

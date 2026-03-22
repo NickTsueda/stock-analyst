@@ -100,9 +100,11 @@ class DataCollectorAgent:
         if not data:
             warnings.append(LimitationNote("yfinance", "Market data unavailable", "warning"))
             self._company_name = ""
+            self._held_pct_institutions = None
             return None
 
         self._company_name = data.pop("company_name", "")
+        self._held_pct_institutions = data.pop("held_pct_institutions", None)
         return MarketData(**data)
 
     def _fetch_financials(self, ticker: str, warnings: list[LimitationNote]) -> FinancialStatements | None:
@@ -131,9 +133,14 @@ class DataCollectorAgent:
         if not data:
             return None
 
-        # Compute total institutional ownership %
-        total_pct = sum(h.get("pct", 0) for h in data)
-        return InstitutionalData(holders=data, institutional_ownership_pct=round(total_pct, 2))
+        # Use total from yfinance info (covers all holders, not just top 10)
+        # Falls back to summing top holders if info field unavailable
+        held_pct = getattr(self, "_held_pct_institutions", None)
+        if held_pct is not None:
+            total_pct = round(held_pct * 100, 2)
+        else:
+            total_pct = round(sum(h.get("pct", 0) for h in data), 2)
+        return InstitutionalData(holders=data, institutional_ownership_pct=total_pct)
 
     def _fetch_edgar(
         self, ticker: str, warnings: list[LimitationNote]
@@ -226,10 +233,14 @@ class DataCollectorAgent:
             )
 
         if yf_txns:
-            net_buys = sum(
-                -1 if "sale" in t.get("type", "").lower() else 1
-                for t in yf_txns
-            )
+            net_buys = 0
+            for t in yf_txns:
+                txn_type = t.get("type", "").lower()
+                if "sale" in txn_type or "sell" in txn_type:
+                    net_buys -= 1
+                elif "purchase" in txn_type or "buy" in txn_type:
+                    net_buys += 1
+                # Empty or unrecognized type → neutral (0), not a buy
             return InsiderActivity(
                 transactions=yf_txns,
                 net_buys=net_buys,
