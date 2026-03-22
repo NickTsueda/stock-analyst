@@ -5,6 +5,7 @@ Pipeline: Orchestrator → Data Collector → Financial Analyst → Thesis Build
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 
 import anthropic
@@ -24,6 +25,9 @@ from src.ui.components import (
     render_risks_catalysts,
     render_thesis_cases,
 )
+
+# Ticker symbols: 1-5 uppercase letters, optionally with dots (BRK.B) or hyphens (BF-B)
+_TICKER_PATTERN = re.compile(r"^[A-Z]{1,5}([.\-][A-Z]{1,2})?$")
 
 # --- Page config ---
 
@@ -65,6 +69,19 @@ with col_btn:
 # --- Pipeline execution ---
 
 
+def _validate_ticker(ticker: str) -> str | None:
+    """Validate ticker format. Returns error message or None if valid."""
+    cleaned = ticker.upper().strip()
+    if not cleaned:
+        return "Please enter a ticker symbol."
+    if not _TICKER_PATTERN.match(cleaned):
+        return (
+            f"**'{ticker}'** doesn't look like a valid ticker symbol. "
+            f"Use 1-5 letters (e.g., AAPL, MSFT, BRK.B)."
+        )
+    return None
+
+
 def _run_pipeline(ticker: str) -> None:
     """Run the Orchestrator pipeline with streaming progress."""
     # Validate API key
@@ -74,6 +91,20 @@ def _run_pipeline(ticker: str) -> None:
             "See `.env.example` for details."
         )
         return
+
+    # Validate ticker format
+    error = _validate_ticker(ticker)
+    if error:
+        st.warning(error)
+        return
+
+    # FRED key warning (non-blocking)
+    if not settings.FRED_API_KEY:
+        st.info(
+            "**FRED API key not set** — macro data (GDP, CPI, unemployment) will be "
+            "unavailable. Set `FRED_API_KEY` in your `.env` file for full analysis.",
+            icon="ℹ️",
+        )
 
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY)
     orchestrator = OrchestratorAgent(client)
@@ -93,12 +124,48 @@ def _run_pipeline(ticker: str) -> None:
         data, analysis, thesis = orchestrator.run(
             ticker, progress_callback=progress_callback
         )
+    except anthropic.AuthenticationError:
+        status_container.update(label="Authentication failed", state="error", expanded=True)
+        st.error(
+            "**Invalid API key.** Your `ANTHROPIC_API_KEY` was rejected. "
+            "Check that it's correct in your `.env` file."
+        )
+        return
+    except anthropic.RateLimitError:
+        status_container.update(label="Rate limited", state="error", expanded=True)
+        st.error(
+            "**Rate limited by Claude API.** Too many requests. "
+            "Wait a minute and try again, or check your API plan limits."
+        )
+        return
     except Exception as e:
         status_container.update(label="Analysis failed", state="error", expanded=True)
-        st.error(f"Pipeline error: {e}")
+        st.error(f"**Pipeline error:** {e}")
         return
 
     elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
+
+    # Detect invalid/unknown ticker: data collected but everything is empty
+    if (
+        data.market_data is None
+        and data.financials is None
+        and data.filing_text is None
+    ):
+        status_container.update(
+            label=f"No data found for {ticker.upper()}", state="error", expanded=True
+        )
+        st.error(
+            f"**Ticker '{ticker.upper()}' not recognized.** No data found from any source. "
+            f"Check the symbol and try again. Note: foreign stocks, OTC, "
+            f"and very recent IPOs may have limited data."
+        )
+        # Still persist so Raw Data tab can show what happened
+        st.session_state["data"] = data
+        st.session_state["analysis"] = None
+        st.session_state["thesis"] = None
+        st.session_state["timestamp"] = start_time.strftime("%Y-%m-%d %H:%M UTC")
+        st.session_state["elapsed"] = elapsed
+        return
 
     # Update status container
     if thesis is not None:
@@ -123,10 +190,8 @@ def _run_pipeline(ticker: str) -> None:
 
 
 # Trigger pipeline
-if analyze and ticker.strip():
+if analyze:
     _run_pipeline(ticker.strip())
-elif analyze:
-    st.warning("Please enter a ticker symbol.")
 
 
 # --- Results display ---
