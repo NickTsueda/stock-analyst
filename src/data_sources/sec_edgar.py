@@ -23,7 +23,6 @@ from src.config import settings
 logger = logging.getLogger(__name__)
 
 _BASE_URL = "https://data.sec.gov"
-_EFTS_URL = "https://efts.sec.gov"
 _ARCHIVES_URL = "https://www.sec.gov/Archives/edgar/data"
 
 
@@ -46,12 +45,6 @@ def get_cik_from_ticker(ticker: str) -> tuple[str, list[str]]:
     """
     warnings = []
     try:
-        resp = requests.get(
-            f"{_EFTS_URL}/LATEST/search-index?q=%22{ticker}%22&dateRange=custom&startdt=2020-01-01&forms=10-K",
-            headers=_headers(),
-            timeout=10,
-        )
-        # Use the company tickers JSON — more reliable
         resp = requests.get(
             "https://www.sec.gov/files/company_tickers.json",
             headers=_headers(),

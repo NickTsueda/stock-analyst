@@ -485,6 +485,20 @@ class TestCompanyPredictabilityScore:
             result = DataCollectorAgent().run("AAPL")
             assert result.company_predictability_score == 50
 
+    def test_cv_to_score_band_boundaries(self):
+        """Direct unit test for _cv_to_score at band boundaries and infinite band."""
+        score = DataCollectorAgent._cv_to_score
+        # Very stable band
+        assert score(0.00) == 100
+        assert score(0.049) >= 90
+        # Stable growth band boundary
+        assert score(0.05) == 89
+        # Infinite band: CV > 0.50 should interpolate 29→10, not always return 10
+        assert score(0.50) == 29
+        assert score(0.55) == 28
+        assert 10 < score(0.75) < 29
+        assert score(1.50) == 10  # floor
+
     def test_xbrl_quarterly_revenue_used_for_predictability(self):
         """XBRL quarterly revenue (10+ quarters) should produce a real score, not default 50."""
         patches = _patch_all_sources()

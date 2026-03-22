@@ -34,6 +34,10 @@ logger = logging.getLogger(__name__)
 class DataCollectorAgent:
     """Fetches raw data from all sources and assembles a DataPackage."""
 
+    def __init__(self):
+        self._company_name: str = ""
+        self._held_pct_institutions: float | None = None
+
     def run(self, ticker: str) -> DataPackage:
         """Collect all data for a ticker and return a DataPackage.
 
@@ -434,7 +438,7 @@ class DataCollectorAgent:
         for cv_low, cv_high, score_high, score_low in bands:
             if cv_low <= cv < cv_high:
                 if cv_high == float("inf"):
-                    return max(10, score_high - int((cv - cv_low) * 20))
+                    return max(score_high, score_low - int((cv - cv_low) * 20))
                 t = (cv - cv_low) / (cv_high - cv_low)
                 return round(score_low - t * (score_low - score_high))
 

@@ -184,7 +184,7 @@ class MacroContext:
 
     @classmethod
     def from_dict(cls, d: dict) -> MacroContext:
-        return cls(**{k: d.get(k) for k in cls.__dataclass_fields__})
+        return cls(**{k: d[k] for k in cls.__dataclass_fields__ if k in d})
 
 
 @dataclass
