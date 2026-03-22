@@ -141,17 +141,72 @@ Continue Session 3: Build Phase 2. Tasks 6-7 are done; Tasks 8-15 remain.
 
 ### What the Next Session Should Do
 
-Continue from Task 8:
-1. Task 8: Financial Analyst Agent (chain-of-thought analysis with UChicago methodology)
-2. Task 9: Thesis Builder Agent (narrative synthesis + self-critique → RevisionRequest)
-3. Task 10: Orchestrator Agent (pipeline coordination + revision loop + confidence score post-processing)
-4. Tasks 11-13: Streamlit UI (charts, components, main app)
-5. Tasks 14-15: Error handling + README
+~~Continue from Task 8~~ — see Session 4 below.
+
+---
+
+## Session 4: Build Phase 2 — Financial Analyst Agent
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main` (no worktree — working directly on main)
+
+### What Was Built
+
+#### Task 8: Financial Analyst Agent (DONE)
+- `src/agents/financial_analyst.py` — `FinancialAnalystAgent` class extending `BaseAgent`:
+  - `run(data: DataPackage) -> FinancialAnalysis` — sends data via `to_prompt_text()`, parses Claude JSON into dataclass
+  - `run_revision(data: DataPackage, request: RevisionRequest) -> RevisedAnalysis` — targeted re-examination for revision loop
+  - `_parse_analysis(raw: dict) -> FinancialAnalysis` — robust parsing with fallbacks for company type, ratios, clamped sub-scores
+  - `_build_revision_prompt(data, request) -> str` — builds focused revision prompt with questions + original data
+- System prompt implements enhanced UChicago methodology with 8-step chain-of-thought:
+  1. Company Type Classification
+  2. Profitability Analysis (with bps quantification)
+  3. Growth Analysis (quarterly momentum emphasis)
+  4. Balance Sheet Health (net debt/cash position)
+  5. Cash Flow Quality (OCF/NI ratio, FCF margin — "most important step for earnings quality")
+  6. Peer Comparison (peer median multiple math)
+  7. Forward Outlook 12-Month (base-rate anchored projections)
+  8. Overall Assessment (evidence-weighted directional lean)
+- **Accuracy-focused analytical discipline** (5 rules in preamble):
+  1. Numbers first, narrative second — every claim must cite a figure
+  2. Distinguish secular trends from one-time items — require 2-3 data points for trend
+  3. Base rate thinking — historical trend is the default projection
+  4. Weight recent data more, but don't ignore history
+  5. Acknowledge uncertainty honestly — confident wrong > uncertain correct
+- Calibrated rubric anchors for LLM-assessed sub-scores (earnings_quality, valuation_clarity, macro_conditions)
+- Valuation clarity capped at 60 when no peer data available
+- Separate, shorter system prompt for revision requests (cost: ~$0.03 vs ~$0.08 for full analysis)
+- `tests/test_financial_analyst.py` — 15 tests:
+  - Run tests (8): returns FinancialAnalysis, parses sub-scores, ratios, strengths/concerns, chain-of-thought, verifies prompt content (methodology + rubric anchors)
+  - Degraded data tests (4): no macro, no filing text, no peers, empty Claude response
+  - Revision tests (3): returns RevisedAnalysis, sends revision context, handles empty response
+
+### Test Results
+
+- **118 tests pass, 0 fail**
+- Breakdown: 15 models + 14 Yahoo Finance + 17 SEC EDGAR + 7 FRED + 13 Base Agent + 19 Data Collector + 15 Financial Analyst + 3 integration + remaining
+
+### Decisions Made
+
+1. **Flexible dict structure for profitability/growth/balance_sheet/cash_flow** — Claude returns whatever metrics are relevant to the company type (e.g., FFO for REITs, NIM for banks) rather than forcing fixed keys that would cause hallucination when data is missing.
+2. **"Sell-side equity research analyst" persona** — stronger framing than generic "financial analyst" to elicit institutional-quality reasoning.
+3. **8-step methodology (added Forward Outlook as explicit step)** — the 12-month outlook was previously buried in "Overall Assessment"; making it a dedicated step forces deeper grounding in the data.
+4. **5-rule analytical discipline preamble** — addresses the most common LLM failure modes in financial analysis (narrative bias, trend extrapolation from single data points, over-confident scoring).
+
+### What the Next Session Should Do
+
+Continue from Task 9:
+1. **Task 9: Thesis Builder Agent** — narrative synthesis + self-critique → RevisionRequest. Two methods: `run()` and `run_with_revision()`.
+2. **Task 10: Orchestrator Agent** — pipeline coordination, data quality gate, revision loop (max 1 iteration, 30s timeout), confidence score post-processing (6-factor weighted average in Python).
+3. **Tasks 11-13: Streamlit UI** — charts.py (Plotly), components.py (rendering), app.py (3-tab layout).
+4. **Task 14: Error handling** — invalid ticker, missing API key, rate limits.
+5. **Task 15: README** — setup, architecture, cost breakdown.
 
 ### How to Resume
 
 ```bash
-cd ~/stock-analyst/.worktrees/build-phase-1
+cd ~/stock-analyst
 source .venv/bin/activate
-pytest tests/ -v  # Should show 88 passing, 1 skipped
+pytest tests/ -v  # Should show 118 passing
 ```

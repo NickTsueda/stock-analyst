@@ -480,9 +480,9 @@ git commit -m "Add Data Collector agent"
 - Create: `~/stock-analyst/src/agents/financial_analyst.py`
 - Create: `~/stock-analyst/tests/test_financial_analyst.py`
 
-- [ ] **Step 1: Write tests** — mock Claude response with realistic JSON, verify parsing into FinancialAnalysis. Test with incomplete data.
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement financial_analyst.py**
+- [x] **Step 1: Write tests** — mock Claude response with realistic JSON, verify parsing into FinancialAnalysis. Test with incomplete data.
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement financial_analyst.py**
 
 `FinancialAnalystAgent.run(data: DataPackage) -> FinancialAnalysis`
 
@@ -496,8 +496,8 @@ System prompt implements the enhanced UChicago methodology:
 
 Requests structured JSON response matching FinancialAnalysis schema.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add Financial Analyst agent with chain-of-thought prompting"
 ```
