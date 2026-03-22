@@ -262,7 +262,14 @@ def render_financial_analysis(
             # Show most recent value and assessment
             if r.values:
                 sorted_years = sorted(r.values.keys(), reverse=True)
-                row["Current"] = f"{r.values[sorted_years[0]]:.2f}" if sorted_years else "—"
+                if sorted_years:
+                    val = r.values[sorted_years[0]]
+                    try:
+                        row["Current"] = f"{float(val):.2f}"
+                    except (ValueError, TypeError):
+                        row["Current"] = str(val)
+                else:
+                    row["Current"] = "—"
             else:
                 row["Current"] = "—"
             row["Assessment"] = r.assessment

@@ -97,6 +97,23 @@ def test_margin_trends_chart_empty_returns_none():
     assert margin_trends_chart({}) is None
 
 
+def test_margin_trends_chart_ignores_operating_expense():
+    """Operating Expense is a cost, not income — must not be used for operating margin."""
+    financials = {
+        "income_statement": {
+            "Total Revenue": {"2024": 383e9, "2023": 383e9},
+            "Operating Expense": {"2024": 270e9, "2023": 265e9},
+            "Net Income": {"2024": 93e9, "2023": 96e9},
+        }
+    }
+    fig = margin_trends_chart(financials)
+    assert isinstance(fig, go.Figure)
+    # Should have net margin only — no operating margin trace since
+    # Operating Expense should NOT be matched as operating income
+    trace_names = [t.name for t in fig.data]
+    assert "Operating Margin" not in trace_names
+
+
 # --- confidence_gauge ---
 
 

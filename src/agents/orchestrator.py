@@ -141,16 +141,17 @@ class OrchestratorAgent:
         _report("Building investment thesis", "complete")
 
         # --- Step 5: Revision Loop (max 1 iteration) ---
+        revised_subscores = None
         if thesis.revision_request:
             _report("Validating thesis (revision loop)", "in_progress")
-            revised_thesis = self._run_revision(data, analysis, thesis)
+            revised_thesis, revised_subscores = self._run_revision(data, analysis, thesis)
             if revised_thesis is not None:
                 thesis = revised_thesis
             _report("Validating thesis (revision loop)", "complete")
 
         # --- Step 6: Confidence Score Post-Processing ---
         _report("Computing confidence score", "in_progress")
-        confidence = self._compute_confidence(data, analysis)
+        confidence = self._compute_confidence(data, analysis, revised_subscores)
         thesis.confidence = confidence
         _report("Computing confidence score", "complete")
 
@@ -161,8 +162,8 @@ class OrchestratorAgent:
         data: DataPackage,
         analysis: FinancialAnalysis,
         thesis: InvestmentThesis,
-    ) -> InvestmentThesis | None:
-        """Run the revision loop with timeout. Returns revised thesis or None."""
+    ) -> tuple[InvestmentThesis | None, dict | None]:
+        """Run the revision loop with timeout. Returns (revised_thesis, revised_subscores)."""
         try:
             start = time.time()
             revised_analysis = self._financial_analyst.run_revision(
@@ -172,7 +173,7 @@ class OrchestratorAgent:
             if elapsed > _REVISION_TIMEOUT:
                 logger.warning("Revision took %.1fs (>%ds), using pre-revision thesis",
                                elapsed, _REVISION_TIMEOUT)
-                return None
+                return None, None
 
             revised_thesis = self._thesis_builder.run_with_revision(
                 data, analysis, revised_analysis
@@ -180,17 +181,18 @@ class OrchestratorAgent:
             total = time.time() - start
             if total > _REVISION_TIMEOUT:
                 logger.warning("Total revision %.1fs exceeded %ds timeout", total, _REVISION_TIMEOUT)
-                return None
+                return None, None
 
-            return revised_thesis
+            return revised_thesis, revised_analysis.revised_subscores
         except Exception as e:
             logger.warning("Revision loop failed: %s, using pre-revision thesis", e)
-            return None
+            return None, None
 
     def _compute_confidence(
         self,
         data: DataPackage,
         analysis: FinancialAnalysis,
+        revised_subscores: dict | None = None,
     ) -> ConfidenceScore:
         """Compute the 6-factor weighted confidence score."""
         # Get qualitative details from Thesis Builder
@@ -204,6 +206,16 @@ class OrchestratorAgent:
         predictability = data.company_predictability_score
         insider_signal = self._compute_insider_signal(data, analysis)
         macro_conditions = analysis.macro_conditions
+
+        # Merge revised sub-scores from revision loop (if any)
+        if revised_subscores:
+            earnings_quality = revised_subscores.get("earnings_quality", earnings_quality)
+            valuation_clarity = revised_subscores.get("valuation_clarity", valuation_clarity)
+            macro_conditions = revised_subscores.get("macro_conditions", macro_conditions)
+
+        # Cap valuation_clarity at 60 when no peer data (per design doc)
+        if data.peers is None or len(data.peers) == 0:
+            valuation_clarity = min(valuation_clarity, 60)
 
         # Build drivers
         sub_scores = {

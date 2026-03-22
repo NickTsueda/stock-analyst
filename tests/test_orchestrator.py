@@ -253,6 +253,32 @@ class TestRevisionLoop:
         # Should use the pre-revision thesis
         assert thesis.executive_summary == "Pre-revision thesis"
 
+    def test_revision_subscores_used_in_confidence(self, mock_agents):
+        """Revised sub-scores (e.g., earnings_quality 75→90) must affect confidence."""
+        revision_req = RevisionRequest(
+            questions=["Is margin expansion sustainable?"],
+            factors_to_reexamine=["earnings_quality"],
+            context="Margins seem optimistic",
+        )
+        initial_thesis = _make_thesis(revision_request=revision_req)
+        revised_thesis = _make_thesis(revision_request=None)
+        revised_analysis = RevisedAnalysis(
+            revised_assessments={"earnings_quality": "Margins confirmed sustainable"},
+            revised_subscores={"earnings_quality": 90},
+            revision_rationale="Deeper analysis confirms margins",
+        )
+
+        mock_agents["tb"].run.return_value = initial_thesis
+        mock_agents["fa"].run_revision.return_value = revised_analysis
+        mock_agents["tb"].run_with_revision.return_value = revised_thesis
+
+        orch = OrchestratorAgent(client=MagicMock())
+        _, _, thesis = orch.run("AAPL")
+
+        # Find the Earnings Quality driver
+        eq_driver = next(d for d in thesis.confidence.drivers if d.factor == "Earnings Quality")
+        assert eq_driver.score == 90, f"Expected revised score 90, got {eq_driver.score}"
+
 
 # --- Confidence Score Tests ---
 
@@ -376,6 +402,18 @@ class TestConfidenceScore:
 
         details = {d.factor: d.detail for d in thesis.confidence.drivers}
         assert details["Earnings Quality"] == "Consistent earnings"
+
+    def test_valuation_clarity_capped_at_60_without_peers(self, mock_agents):
+        """No peer data → valuation_clarity capped at 60 (per design doc)."""
+        mock_agents["data_pkg"].peers = []
+        analysis = _make_analysis(valuation_clarity=80)
+        mock_agents["fa"].run.return_value = analysis
+
+        orch = OrchestratorAgent(client=MagicMock())
+        _, _, thesis = orch.run("AAPL")
+
+        vc_driver = next(d for d in thesis.confidence.drivers if d.factor == "Valuation Clarity")
+        assert vc_driver.score == 60, f"Expected capped 60, got {vc_driver.score}"
 
 
 # --- Insider Signal Heuristic Tests ---

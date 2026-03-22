@@ -177,7 +177,7 @@ def margin_trends_chart(financials: dict | None) -> go.Figure | None:
     revenue = _find_line_item(income, ["Total Revenue", "Revenue", "Revenues"])
     gross_profit = _find_line_item(income, ["Gross Profit"])
     operating_income = _find_line_item(income, [
-        "Operating Income", "EBIT", "Operating Expense",
+        "Operating Income", "EBIT", "Operating Income Loss",
     ])
     net_income = _find_line_item(income, ["Net Income", "Net Income Common Stockholders"])
 
