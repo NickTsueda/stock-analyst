@@ -209,6 +209,32 @@ if data is not None:
         if thesis.confidence:
             render_confidence_score(thesis.confidence)
 
+    # Warn for non-equity instrument types (ETFs, mutual funds, ADRs)
+    # Placed in display section (not _run_pipeline) so it persists across Streamlit reruns
+    _NON_EQUITY_WARNINGS = {
+        "ETF": (
+            "**{ticker} is an ETF, not an individual stock.** This tool is designed "
+            "for single-company equity analysis. ETF results may be misleading — "
+            "ETFs have no SEC filings, insider activity, or company-specific fundamentals."
+        ),
+        "MUTUALFUND": (
+            "**{ticker} is a mutual fund, not an individual stock.** This tool is "
+            "designed for single-company equity analysis. Mutual fund results will "
+            "be incomplete and misleading."
+        ),
+    }
+    if data.market_data is not None:
+        qt = data.market_data.quote_type
+        ticker_display = data.ticker
+        if qt in _NON_EQUITY_WARNINGS:
+            st.warning(_NON_EQUITY_WARNINGS[qt].format(ticker=ticker_display))
+        elif qt not in ("EQUITY", ""):
+            st.warning(
+                f"**{ticker_display} is classified as '{qt}', not a standard equity.** "
+                f"This tool is designed for US-listed company stocks. Results may be "
+                f"incomplete or misleading for this instrument type."
+            )
+
     # 3-tab layout
     tab_thesis, tab_analysis, tab_raw = st.tabs(
         ["Investment Thesis", "Financial Analysis", "Raw Data"]

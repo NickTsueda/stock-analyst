@@ -23,6 +23,7 @@ STUB_MARKET_DATA = {
     "fifty_two_week_low": 164.08,
     "sector": "Technology",
     "industry": "Consumer Electronics",
+    "quote_type": "EQUITY",
     "company_name": "Apple Inc.",
     "held_pct_institutions": 0.6526,
 }
@@ -146,6 +147,34 @@ class TestDataCollectorHappyPath:
             assert result.market_data is not None
             assert result.market_data.current_price == 178.50
             assert result.market_data.sector == "Technology"
+
+    def test_market_data_includes_quote_type(self):
+        """quote_type from yfinance flows through to MarketData on DataPackage."""
+        patches = _patch_all_sources()
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+            assert result.market_data.quote_type == "EQUITY"
+
+    def test_etf_quote_type_flows_through(self):
+        """ETF quoteType is preserved in MarketData for downstream warning."""
+        patches = _patch_all_sources()
+        etf_market_data = dict(STUB_MARKET_DATA)
+        etf_market_data["quote_type"] = "ETF"
+        patches["market_data"] = patch(
+            "src.agents.data_collector.yf.get_market_data",
+            return_value=(etf_market_data, []),
+        )
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("SPY")
+            assert result.market_data.quote_type == "ETF"
 
     def test_populates_financials(self):
         patches = _patch_all_sources()

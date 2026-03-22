@@ -49,6 +49,29 @@ class TestLimitationNote:
         assert restored.severity == "warning"
 
 
+class TestMarketData:
+    def test_from_dict_uses_defaults_for_missing_keys(self):
+        """from_dict should use dataclass defaults, not Field objects, for missing keys."""
+        partial = {"current_price": 100.0, "sector": "Tech"}
+        md = MarketData.from_dict(partial)
+        assert md.current_price == 100.0
+        assert md.quote_type == "EQUITY"  # default, not Field object
+        assert md.pe_ratio is None  # Optional default
+        assert md.beta is None
+
+    def test_from_dict_preserves_quote_type(self):
+        """from_dict should preserve quote_type when present."""
+        d = {"current_price": 50.0, "quote_type": "ETF"}
+        md = MarketData.from_dict(d)
+        assert md.quote_type == "ETF"
+
+    def test_round_trip(self):
+        md = MarketData(current_price=175.0, sector="Tech", quote_type="MUTUALFUND")
+        restored = MarketData.from_dict(md.to_dict())
+        assert restored.current_price == 175.0
+        assert restored.quote_type == "MUTUALFUND"
+
+
 class TestDataPackage:
     def test_round_trip(self, sample_data_package):
         d = sample_data_package.to_dict()

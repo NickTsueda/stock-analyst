@@ -162,6 +162,29 @@ class TestGetMarketData:
         assert result["current_price"] == 100.0
         assert result["pe_ratio"] is None
 
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    def test_returns_quote_type_for_equity(self, mock_yf, mock_ticker):
+        mock_ticker.info["quoteType"] = "EQUITY"
+        mock_yf.return_value = mock_ticker
+        result, _ = get_market_data("AAPL")
+        assert result["quote_type"] == "EQUITY"
+
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    def test_returns_quote_type_for_etf(self, mock_yf, mock_ticker):
+        mock_ticker.info["quoteType"] = "ETF"
+        mock_yf.return_value = mock_ticker
+        result, _ = get_market_data("SPY")
+        assert result["quote_type"] == "ETF"
+
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    def test_quote_type_defaults_to_equity(self, mock_yf, mock_ticker):
+        """When quoteType is missing from yfinance info, default to EQUITY."""
+        # mock_ticker.info has no quoteType key — should default to "EQUITY"
+        assert "quoteType" not in mock_ticker.info
+        mock_yf.return_value = mock_ticker
+        result, _ = get_market_data("AAPL")
+        assert result["quote_type"] == "EQUITY"
+
 
 class TestGetPriceHistory:
     @patch("src.data_sources.yahoo_finance.yf.Ticker")

@@ -117,6 +117,7 @@ def get_market_data(ticker: str) -> tuple[dict, list[str]]:
             "fifty_two_week_low": info.get("fiftyTwoWeekLow"),
             "sector": info.get("sector", ""),
             "industry": info.get("industry", ""),
+            "quote_type": info.get("quoteType", "EQUITY"),
             "company_name": info.get("shortName") or info.get("longName", ""),
             "held_pct_institutions": info.get("heldPercentInstitutions"),
         }, warnings

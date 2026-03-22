@@ -94,6 +94,7 @@ class MarketData:
     fifty_two_week_low: float | None = None
     sector: str = ""
     industry: str = ""
+    quote_type: str = "EQUITY"
 
     def to_dict(self) -> dict:
         return {
@@ -110,12 +111,12 @@ class MarketData:
             "fifty_two_week_low": self.fifty_two_week_low,
             "sector": self.sector,
             "industry": self.industry,
+            "quote_type": self.quote_type,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> MarketData:
-        return cls(**{k: d.get(k, v) for k, v in cls.__dataclass_fields__.items()
-                      if k in d or hasattr(cls, k)})
+        return cls(**{k: d[k] for k in cls.__dataclass_fields__ if k in d})
 
 
 @dataclass
