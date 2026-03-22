@@ -210,3 +210,65 @@ cd ~/stock-analyst
 source .venv/bin/activate
 pytest tests/ -v  # Should show 118 passing
 ```
+
+---
+
+## Session 5: Build Phase 2 — Thesis Builder Agent
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main`
+
+### What Was Built
+
+#### Task 9: Thesis Builder Agent (DONE)
+- `src/agents/thesis_builder.py` — `ThesisBuilderAgent` class extending `BaseAgent`:
+  - `run(data: DataPackage, analysis: FinancialAnalysis) -> InvestmentThesis` — synthesizes data + analysis into narrative thesis with self-critique
+  - `run_with_revision(data, analysis, revised: RevisedAnalysis) -> InvestmentThesis` — produces updated thesis incorporating revised analysis (no self-critique — revision is one-and-done)
+  - `_parse_thesis(raw, allow_revision)` — robust parsing with recommendation fallback, investment case parsing, self-critique → RevisionRequest extraction
+  - `_build_user_prompt(data, analysis)` — sends both raw DataPackage and structured FinancialAnalysis sections
+  - `_build_revision_user_prompt(data, analysis, revised)` — prominently places revised assessments for integration
+  - Stores `last_confidence_summary` and `last_confidence_driver_details` as instance attributes for Orchestrator post-processing
+- System prompt implements narrative synthesis methodology:
+  - Evidence-weighted recommendation (BUY/HOLD/SELL with 12-month horizon)
+  - Probability-calibrated bull/base/bear scenarios (must sum to 100%)
+  - Self-critique step: "What are the weakest assumptions? What contradictions? What would a skeptic challenge?"
+  - Requires specific metrics in executive summary (no vague qualitative assertions)
+  - Guards against confirmation bias and defaulting to HOLD
+  - Includes disclaimer requirement ("not financial advice")
+- Separate, shorter system prompt for revision (no self-critique, integrates revised assessments)
+- `tests/test_thesis_builder.py` — 18 tests:
+  - Run tests (6): returns InvestmentThesis, parses executive summary, bull/base/bear cases with probabilities summing to 1.0, risks/catalysts, all narrative sections, confidence details for Orchestrator
+  - Self-critique tests (3): no revision when no gaps, produces RevisionRequest when gaps found, revision has factors to reexamine
+  - Revision tests (3): run_with_revision returns thesis, sends revised data in prompt, no new RevisionRequest
+  - Degraded data tests (3): no peers, no macro, empty Claude response
+  - Prompt tests (3): system prompt has synthesis instructions + self-critique + disclaimer, user prompt includes data + analysis
+
+### Test Results
+
+- **136 tests pass, 0 fail**
+- Breakdown: 15 models + 14 Yahoo Finance + 17 SEC EDGAR + 7 FRED + 13 Base Agent + 19 Data Collector + 15 Financial Analyst + 18 Thesis Builder + 3 integration + remaining
+
+### Decisions Made
+
+1. **Self-critique within same Claude call** — cheaper ($0.12 for one call vs $0.24 for two) and faster. Claude generates thesis + self-critique in one pass. The JSON includes a `self_critique` section that may or may not trigger a revision.
+2. **Confidence details stored as agent instance attributes** (`last_confidence_summary`, `last_confidence_driver_details`) — the Orchestrator reads these after calling run(). Avoids changing the InvestmentThesis model (which sets confidence=None until the Orchestrator fills it in).
+3. **Separate system prompts for initial vs revision** — the revision prompt is shorter (no self-critique needed, no scenario construction — just integrate revised assessments and adjust probabilities/recommendation if warranted).
+4. **"Senior investment strategist" persona** — distinct from the Financial Analyst's "sell-side equity research analyst" persona. The strategist synthesizes rather than calculates.
+5. **Anti-confirmation-bias guardrails** — prompt explicitly warns against forcing narratives, defaulting to HOLD, and assigning >60% to any single scenario without justification.
+
+### What the Next Session Should Do
+
+Continue from Task 10:
+1. **Task 10: Orchestrator Agent** — pipeline coordination, data quality gate, revision loop (max 1 iteration, 30s timeout), confidence score post-processing
+2. **Tasks 11-13: Streamlit UI** — charts.py, components.py, app.py
+3. **Task 14: Error handling** — invalid ticker, missing API key, rate limits
+4. **Task 15: README**
+
+### How to Resume
+
+```bash
+cd ~/stock-analyst
+source .venv/bin/activate
+pytest tests/ -v  # Should show 136 passing
+```

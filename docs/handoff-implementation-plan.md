@@ -508,9 +508,9 @@ git commit -m "Add Financial Analyst agent with chain-of-thought prompting"
 - Create: `~/stock-analyst/src/agents/thesis_builder.py`
 - Create: `~/stock-analyst/tests/test_thesis_builder.py`
 
-- [ ] **Step 1: Write tests** — mock Claude response, verify all thesis sections populated
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement thesis_builder.py**
+- [x] **Step 1: Write tests** — mock Claude response, verify all thesis sections populated
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement thesis_builder.py**
 
 `ThesisBuilderAgent.run(data: DataPackage, analysis: FinancialAnalysis) -> InvestmentThesis`
 
@@ -534,7 +534,7 @@ After Claude returns the thesis JSON (with qualitative driver details and summar
 4. Applies guardrails (Data Completeness < 30 caps overall at 40)
 5. Assembles the final `ConfidenceScore` dataclass with sub-scores + Claude's qualitative text
 
-- [ ] **Step 4: Run tests to verify they pass**
+- [x] **Step 4: Run tests to verify they pass**
 - [ ] **Step 5: Commit**
 ```bash
 git commit -m "Add Thesis Builder agent with multi-source synthesis"
