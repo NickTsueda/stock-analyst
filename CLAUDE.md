@@ -21,7 +21,7 @@ Options:
 - Session 4: QA (reviewing and fixing)
 - Complete
 
-Current: **Build — Phase 2 (Agents + UI)**
+Current: **QA**
 
 ## Session Start Ritual
 

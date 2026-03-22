@@ -407,3 +407,82 @@ cd ~/stock-analyst
 source .venv/bin/activate
 pytest tests/ -v  # Should show 181 passing
 ```
+
+---
+
+## Session 8: Bug Fixes + Enhancements
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main`
+
+### What Was Built
+
+#### Bug Fixes (from Session 7 code review)
+- **Bug #23:** Fixed operating margin chart using Operating Expense instead of Operating Income — corrected `_find_operating_income()` in `charts.py` to prefer OperatingIncome/OperatingRevenue labels
+- **Bug #24:** Fixed revised confidence sub-scores being ignored — `orchestrator.py` now merges `revised.revised_subscores` into confidence computation after revision loop
+- **Bug #13:** Enforced valuation_clarity cap at 60 when no peer data — added Python-side cap in `_compute_confidence()` (previously only in Claude prompt)
+- **Bug #14:** Fixed ratio table crash on string values — `components.py` now safely formats non-numeric ratio values instead of crashing on `.2f` format
+
+#### Enhancement #3: Deseasonalized Predictability Score
+- Rewrote `_compute_predictability_score()` in `data_collector.py` to use year-over-year same-quarter revenue changes instead of raw quarterly CV
+- This removes seasonal noise (e.g., Q4 holiday spikes) that was artificially inflating volatility scores
+- AAPL predictability improved from 53 → 73 (reflects true business stability)
+
+#### Enhancement #15: ETF/Mutual Fund Detection
+- `yahoo_finance.py` now captures `quoteType` from yfinance info → stored in `MarketData.quote_type`
+- `app.py` shows type-specific warnings for ETFs and mutual funds
+- Catches non-equity instruments before expensive Claude calls waste money on meaningless analysis
+
+#### Bug #25: MarketData.from_dict() Fix
+- Fixed `from_dict()` using `dataclasses.fields()` default objects instead of actual defaults — now uses `field.default` / `field.default_factory` correctly
+
+#### 4 Bugs from Critical Review Pass
+- **_cv_to_score infinite band:** Fixed linear interpolation at CV boundary values (was producing scores outside 0-100 range)
+- **Dead EFTS request:** Removed unused SEC EDGAR full-text search request that was wasting time and hitting rate limits
+- **MacroContext.from_dict:** Fixed deserialization bug where nested dict wasn't being handled correctly
+- **DataCollectorAgent __init__:** Added missing `__init__` that was causing AttributeError on instantiation in some code paths
+
+### Test Results
+
+- **203 tests pass, 0 fail**
+- Added tests for deseasonalized predictability, ETF detection, MarketData.from_dict fix, and all bug fixes
+
+### Commits
+
+- `cdce71c` — Fix 4 bugs from code review (#23, #24, #13, #14)
+- `04229bd` — Deseasonalize predictability score with YoY same-quarter comparison
+- `fdd2946` — Add ETF/mutual fund detection warning and fix MarketData.from_dict bug
+- `d51b611` — Fix 4 bugs from critical review pass
+
+---
+
+## Session 9: README, Manual Testing, Closeout
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main`
+
+### What Was Done
+
+#### Task 15: README (DONE)
+- Updated status from "under active development" to "V1 complete"
+- Fixed install instructions: `pip install -e ".[dev]"` (was `pip install -r requirements.txt`)
+- Removed fictitious `SEC_EDGAR_EMAIL` env var (User-Agent is hardcoded in config)
+- Added "What You Get" section describing the 3-tab output
+- Added "Cost Per Analysis" table (~$0.15-0.20/analysis breakdown)
+- Expanded project structure with all source files and descriptions
+
+#### Manual Testing (DONE)
+- **AAPL:** Full pipeline runs, data_completeness=100, predictability=73, pipeline completes in ~14s (data only, Claude calls need valid key)
+- **XXXXX:** Correctly detected as unknown ticker — 4 warnings (no yfinance financials, no price history, SEC EDGAR not found), app.py shows error message
+- **SPY:** Correctly identified as `quote_type=ETF`, app.py shows ETF-specific warning banner
+
+#### Handoff Documentation (DONE)
+- Appended Session 8 + Session 9 logs to `docs/handoff-build.md`
+- Checked off Task 15, Task 15.5, and Session 3 handoff items in implementation plan
+- Updated CLAUDE.md stage to "QA"
+
+### Test Results
+
+- **203 tests pass, 0 fail** (unchanged)

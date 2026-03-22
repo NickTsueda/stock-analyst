@@ -693,28 +693,28 @@ git commit -m "Add Streamlit app with full analysis pipeline UI"
 
 ### Task 15: README
 
-- [ ] **Step 1:** Write README with: setup instructions, architecture diagram, example output description, cost breakdown, link to UChicago paper
-- [ ] **Step 2:** Commit
+- [x] **Step 1:** Write README with: setup instructions, architecture diagram, example output description, cost breakdown, link to UChicago paper
+- [x] **Step 2:** Commit
 ```bash
 git commit -m "Add README with setup instructions and architecture overview"
 ```
 
 ### Task 15.5: Pre-Launch Bug Fixes + Enhancements (added)
 
-- [ ] **Step 1:** Fix bug #23 — remove "Operating Expense" from margin chart candidates
-- [ ] **Step 2:** Fix bug #24 — incorporate revised_subscores into confidence computation
-- [ ] **Step 3:** Fix bug #13 — enforce valuation_clarity cap at 60 when no peers
-- [ ] **Step 4:** Fix bug #14 — safe format for ratio table values
-- [ ] **Step 5:** Enhancement #3 — deseasonalized predictability score (YoY same-quarter CV)
-- [ ] **Step 6:** Enhancement #15 — ETF/ADR/mutual fund detection warning
-- [ ] **Step 7:** Update tests for all fixes
-- [ ] **Step 8:** Commit
+- [x] **Step 1:** Fix bug #23 — remove "Operating Expense" from margin chart candidates
+- [x] **Step 2:** Fix bug #24 — incorporate revised_subscores into confidence computation
+- [x] **Step 3:** Fix bug #13 — enforce valuation_clarity cap at 60 when no peers
+- [x] **Step 4:** Fix bug #14 — safe format for ratio table values
+- [x] **Step 5:** Enhancement #3 — deseasonalized predictability score (YoY same-quarter CV)
+- [x] **Step 6:** Enhancement #15 — ETF/ADR/mutual fund detection warning
+- [x] **Step 7:** Update tests for all fixes
+- [x] **Step 8:** Commit
 
 ### Session 3 Handoff
 
 - [x] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
-- [ ] **Update CLAUDE.md stage to "QA"**
-- [ ] **Commit handoff docs**
+- [x] **Update CLAUDE.md stage to "QA"**
+- [x] **Commit handoff docs**
 
 ---
 

@@ -4,7 +4,7 @@ A multi-agent AI system that takes a ticker symbol and produces a complete inves
 
 Inspired by the [UChicago paper (May 2024)](https://papers.ssrn.com/sol3/papers.cfm?abstract_id=4835311) where GPT-4 predicted earnings direction with 60.4% accuracy vs 52.7% for human analysts using chain-of-thought prompting on financial statements.
 
-> **Status:** Under active development. Design phase complete, implementation in progress.
+> **Status:** V1 complete. All agents, UI, and data sources implemented. 203 tests passing.
 
 ## Why This Exists
 
@@ -83,7 +83,7 @@ git clone https://github.com/NickTsueda/stock-analyst.git
 cd stock-analyst
 python -m venv .venv
 source .venv/bin/activate
-pip install -r requirements.txt
+pip install -e ".[dev]"
 ```
 
 Create a `.env` file:
@@ -91,7 +91,6 @@ Create a `.env` file:
 ```
 ANTHROPIC_API_KEY=your-key-here
 FRED_API_KEY=your-key-here
-SEC_EDGAR_EMAIL=your-email@example.com
 ```
 
 ### Run
@@ -110,18 +109,51 @@ python run_collector.py AAPL
 
 This fetches data from all three sources (Yahoo Finance, SEC EDGAR, FRED) and outputs the structured markdown that gets passed to Claude for analysis. No Anthropic API key needed — the Data Collector doesn't use Claude.
 
+## What You Get
+
+Enter a ticker (e.g., AAPL) and the app produces:
+
+- **Investment Thesis tab** — Recommendation badge (BUY/HOLD/SELL), confidence gauge (0–100) with expandable breakdown, executive summary, bull/base/bear cases with probabilities, risks & catalysts, insider/institutional signals, macro context
+- **Financial Analysis tab** — 1Y price chart with 50/200-day moving averages, revenue & margin trend charts, ratio table (P/E, P/S, D/E, ROE, etc.), chain-of-thought agent reasoning
+- **Raw Data tab** — Data completeness indicator, per-source status, expandable raw data sections, warnings log
+
+Analysis completes in 45–90 seconds. ETFs and mutual funds are detected with a warning that the tool is designed for individual stocks.
+
+## Cost Per Analysis
+
+| Component | Est. Cost |
+|---|---|
+| Financial Analyst (~25K input, ~3K output) | ~$0.08 |
+| Thesis Builder (~35K input, ~4K output) | ~$0.12 |
+| Revision loop (if triggered) | ~$0.03 |
+| Data Collector + Orchestrator (no Claude) | $0.00 |
+| **Total per analysis** | **~$0.15–0.20** |
+
 ## Project Structure
 
 ```
 stock-analyst/
-├── app.py              # Streamlit entry point
-├── src/                # All source code
-├── tests/              # All tests
-├── docs/               # Design docs, PRD, architecture
-│   ├── prd.md          # Product requirements
-│   ├── design.md       # Architecture & data contracts
-│   └── ...             # Handoff & implementation docs
-└── CLAUDE.md           # AI assistant instructions
+├── app.py                          # Streamlit entry point
+├── pyproject.toml                  # Dependencies and project config
+├── .env.example                    # API key placeholders
+├── src/
+│   ├── models.py                   # 17 dataclasses + 3 enums (typed data contracts)
+│   ├── config.py                   # Settings, API keys, constants
+│   ├── agents/
+│   │   ├── base.py                 # Base agent (Claude calling, JSON parsing, retry)
+│   │   ├── orchestrator.py         # Pipeline coordinator + confidence scoring
+│   │   ├── data_collector.py       # Data fetching from all sources (no Claude)
+│   │   ├── financial_analyst.py    # Chain-of-thought financial analysis
+│   │   └── thesis_builder.py       # Investment thesis synthesis + self-critique
+│   ├── data_sources/
+│   │   ├── sec_edgar.py            # SEC EDGAR API (XBRL, filings, Form 4)
+│   │   ├── yahoo_finance.py        # yfinance wrapper
+│   │   └── fred.py                 # FRED macro indicators
+│   └── ui/
+│       ├── components.py           # Streamlit rendering functions
+│       └── charts.py               # Plotly chart builders
+├── tests/                          # 203 tests (unit + integration)
+└── docs/                           # PRD, architecture, handoff docs
 ```
 
 ## Design Documentation
@@ -130,6 +162,7 @@ The `/docs` directory contains the full product and technical design:
 
 - **[PRD](docs/prd.md)** — Product requirements, user journey, success criteria
 - **[Design](docs/design.md)** — Architecture, data contracts, confidence algorithm, UI spec
+- **[Implementation Plan](docs/handoff-implementation-plan.md)** — Phased build plan with task tracking
 
 ## Scope
 
