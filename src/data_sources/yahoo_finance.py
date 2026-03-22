@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import logging
 
+import requests
 import yfinance as yf
 
 logger = logging.getLogger(__name__)
@@ -50,10 +51,16 @@ def get_financial_statements(ticker: str) -> tuple[dict, list[str]]:
             qf = t.quarterly_financials
             if qf is not None and not qf.empty:
                 rev_row = None
+                # Prefer exact "Total Revenue" match over fuzzy "revenue" substring
                 for label in qf.index:
-                    if "revenue" in str(label).lower():
+                    if str(label) == "Total Revenue":
                         rev_row = label
                         break
+                if rev_row is None:
+                    for label in qf.index:
+                        if str(label) in ("Operating Revenue", "Revenue"):
+                            rev_row = label
+                            break
                 if rev_row is not None:
                     quarterly_revenue = [
                         v.item() if hasattr(v, "item") else v
@@ -206,72 +213,20 @@ def get_peer_data(
 ) -> tuple[list[dict], list[str]]:
     """Fetch peer comparison data for 3-5 sector peers.
 
-    Uses yfinance screener via industry. Constrains to 0.25x-4x market cap band.
-    Falls back to sector if industry yields <3 peers.
+    Uses Yahoo Finance's recommended symbols API to find peers, then filters
+    to a 0.25x-4x market cap band and fetches fundamentals for each.
 
     Returns (list_of_peer_dicts, warnings).
     """
     warnings = []
     try:
-        t = yf.Ticker(ticker)
-        # Use yfinance's built-in sector/industry peers if available
-        peers = _find_peers_from_screener(ticker, industry, market_cap, sector)
-
-        if len(peers) < 3 and sector:
-            warnings.append(
-                f"Only {len(peers)} peers found for industry '{industry}', "
-                f"falling back to sector '{sector}'"
-            )
-            peers = _find_peers_from_screener(ticker, sector, market_cap, sector, use_sector=True)
-
-        if not peers:
-            warnings.append("No peers found — peer comparison will be skipped")
-
-        return peers, warnings
-
-    except Exception as e:
-        logger.warning("yfinance peer_data failed for %s: %s", ticker, e)
-        return [], [f"yfinance peer data failed: {e}"]
-
-
-def _find_peers_from_screener(
-    ticker: str,
-    classification: str,
-    market_cap: float,
-    sector: str,
-    use_sector: bool = False,
-) -> list[dict]:
-    """Find peers using yfinance Ticker info for known peer tickers.
-
-    Since yfinance doesn't have a reliable screener API, we use a pragmatic
-    approach: check the Ticker's recommended_symbols or use a curated approach
-    based on sector/industry.
-    """
-    peers = []
-    try:
-        t = yf.Ticker(ticker)
-        # Try to get recommended symbols (yfinance provides these for some tickers)
-        recs = getattr(t, "recommendations", None)
-
-        # Fallback: use sector tickers from info if available
-        # yfinance doesn't provide a clean screener — in production the Data Collector
-        # would maintain a sector-to-tickers mapping or use a different API.
-        # For now, we fetch peers from the ticker's own comparison data if available.
-        peer_tickers = []
-
-        # Check for similar tickers via yfinance
-        try:
-            # Some yfinance versions expose this
-            if hasattr(t, "get_recommendations_summary"):
-                pass  # Not useful for peer discovery
-        except Exception:
-            pass
+        peer_tickers = _fetch_recommended_symbols(ticker)
 
         # Market cap band: 0.25x to 4x
         min_cap = market_cap * 0.25
         max_cap = market_cap * 4.0
 
-        # If we have peer tickers, fetch their data
+        peers = []
         for pt in peer_tickers[:5]:
             try:
                 peer = yf.Ticker(pt)
@@ -294,7 +249,33 @@ def _find_peers_from_screener(
             except Exception:
                 continue
 
-    except Exception:
-        pass
+        if not peers:
+            warnings.append("No peers found — peer comparison will be skipped")
 
-    return peers[:5]
+        return peers, warnings
+
+    except Exception as e:
+        logger.warning("yfinance peer_data failed for %s: %s", ticker, e)
+        return [], [f"yfinance peer data failed: {e}"]
+
+
+def _fetch_recommended_symbols(ticker: str) -> list[str]:
+    """Fetch Yahoo Finance's 'People Also Watch' tickers for a given symbol.
+
+    Uses Yahoo's recommendationsbysymbol API. Returns up to 5 ticker strings,
+    or an empty list on failure.
+    """
+    try:
+        url = f"https://query2.finance.yahoo.com/v6/finance/recommendationsbysymbol/{ticker}"
+        resp = requests.get(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+        symbols = (
+            data.get("finance", {})
+            .get("result", [{}])[0]
+            .get("recommendedSymbols", [])
+        )
+        return [s["symbol"] for s in symbols]
+    except Exception as e:
+        logger.warning("Failed to fetch recommended symbols for %s: %s", ticker, e)
+        return []

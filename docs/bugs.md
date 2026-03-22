@@ -1,10 +1,11 @@
 # Known Bugs — Data Collector Output
 
-## Bug 1: Peer discovery is a stub (never finds peers)
-**File:** `src/data_sources/yahoo_finance.py` lines 235-298
-**Issue:** `_find_peers_from_screener()` never populates `peer_tickers`, so the loop at line 273 never executes. The function always returns an empty list.
-**Impact:** No peer comparison data is ever included in the DataPackage. The Financial Analyst agent will have no competitive context.
-**Fix:** Either use yfinance's `Ticker.recommendations` to extract peer tickers, or maintain a hardcoded sector-to-tickers mapping for common industries.
+## Bug 1: Peer discovery is a stub (never finds peers) — FIXED
+**File:** `src/data_sources/yahoo_finance.py` (peer discovery functions)
+**Issue:** `_find_peers_from_screener()` never populated `peer_tickers` — the variable was initialized as `[]` and never assigned to. The loop that fetches peer fundamentals iterated over nothing.
+**Root cause:** The original implementation was a placeholder. yfinance doesn't have a built-in screener API, and the code tried several approaches (recommendations, recommendations_summary) but none of them produce peer ticker symbols.
+**Fix:** Replaced the stub with `_fetch_recommended_symbols()` which calls Yahoo Finance's `recommendationsbysymbol` API — the same "People Also Watch" data shown on Yahoo Finance ticker pages. This returns 5 relevant comparison tickers (e.g., AAPL → AMZN, TSLA, GOOG, META, MSFT). The existing market cap band filter (0.25x-4x) and fundamentals fetching logic were already correct and now execute properly.
+**Verified:** AAPL: 5 peers (AMZN, TSLA, GOOG, META, MSFT) with real P/E, margin, and growth data. JPM returns financial sector peers (C, BAC, WFC, GS). XOM returns energy/defensive peers (CVX, JNJ, WMT, PG). 3 new unit tests + 1 integration test added, 102 tests pass.
 
 ## Bug 2: Insider activity counts all transactions as "buys" — FIXED
 **File:** `src/data_sources/sec_edgar.py` (Form 4 URL construction) + `src/agents/data_collector.py` (yfinance fallback)
@@ -35,10 +36,17 @@
 4. Fixed test mutable dict bug: `STUB_MARKET_DATA` was shared across tests and mutated by `data.pop()`. Changed to return fresh copy per test.
 **Verified:** AAPL: 65.26%, MSFT: 76.0%. Both match real-world values. 3 new tests added, all 97 tests pass.
 
-## Bug 5: Company Predictability Score is always 50
-**File:** `src/agents/data_collector.py` (predictability computation)
+## Bug 5: Company Predictability Score is always 50 — FIXED
+**File:** `src/agents/data_collector.py` (predictability computation) + `src/data_sources/yahoo_finance.py` (revenue row match)
 **Issue:** Both AAPL and MSFT return a predictability score of exactly 50, despite having very stable, predictable quarterly revenue. The score should differ based on revenue volatility (coefficient of variation).
-**Impact:** The Confidence Score's "Company Predictability" factor (20% weight) is always the same default value instead of reflecting actual revenue stability.
+**Root cause (two compounding issues):**
+1. **Insufficient data from yfinance.** `t.quarterly_financials` only returns ~5 quarters, but `_compute_predictability_score` requires >= 8. The function always hit the `len < 8` guard and returned the default 50.
+2. **Wrong yfinance row matched.** The `"revenue" in label.lower()` search matched "Reconciled Cost Of Revenue" (cost data) before "Total Revenue" — reading the wrong metric entirely.
+**Fix:**
+1. In `data_collector.py`: Added `_extract_quarterly_revenue_from_xbrl()` to extract quarterly revenue from SEC EDGAR XBRL data (28+ quarters available via `frame` field filtering for 'Q' entries). XBRL is primary source, yfinance fallback.
+2. In `yahoo_finance.py`: Changed revenue row search to prefer exact "Total Revenue" match, then "Operating Revenue"/"Revenue", instead of substring matching on "revenue".
+3. Added 3 new tests: XBRL quarterly revenue used for scoring, XBRL-to-yfinance fallback, no-revenue-anywhere defaults to 50. Updated 3 existing tests to account for XBRL priority.
+**Verified:** AAPL: 53/100 (CV=0.28, seasonal revenue swings). MSFT: 41/100 (CV=0.38, strong growth trend creates high dispersion). Scores now differ and reflect actual revenue characteristics. 99 tests pass.
 
 ## Bug 6: Balance sheet includes a stale 5th year of all NaN values
 **Issue:** Every balance sheet line item includes `'2021-06-30 00:00:00': nan` (MSFT) or `'2021-09-30 00:00:00': nan` (AAPL) — a year with no data. This wastes prompt tokens and could confuse Claude.

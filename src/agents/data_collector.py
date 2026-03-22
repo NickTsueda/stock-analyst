@@ -66,7 +66,10 @@ class DataCollectorAgent:
         insider_obj = self._resolve_insider_data(edgar_insider_txns, insider_yf, warnings)
 
         # --- Company predictability score ---
-        quarterly_revenue = financials_obj.quarterly_revenue if financials_obj else []
+        # EDGAR XBRL primary (28+ quarters), yfinance fallback (5 quarters)
+        quarterly_revenue = self._extract_quarterly_revenue_from_xbrl(xbrl_facts)
+        if len(quarterly_revenue) < 8:
+            quarterly_revenue = financials_obj.quarterly_revenue if financials_obj else []
         predictability_score = self._compute_predictability_score(quarterly_revenue)
 
         # --- Company name ---
@@ -303,6 +306,35 @@ class DataCollectorAgent:
             balance_sheet=balance,
             cash_flow=cash,
         )
+
+    @staticmethod
+    def _extract_quarterly_revenue_from_xbrl(xbrl_facts: dict) -> list[float]:
+        """Extract quarterly revenue values from XBRL facts.
+
+        Looks for revenue concepts and filters for single-quarter entries
+        (identified by 'Q' in the frame field). Returns values sorted by
+        date descending (most recent first).
+        """
+        revenue_concepts = [
+            "RevenueFromContractWithCustomerExcludingAssessedTax",
+            "Revenues",
+            "SalesRevenueNet",
+            "SalesRevenueGoodsNet",
+        ]
+
+        for concept in revenue_concepts:
+            entries = xbrl_facts.get(concept, [])
+            # Filter for quarterly entries: must have 'frame' with 'Q' in it
+            quarterly = [
+                e for e in entries
+                if "frame" in e and "Q" in e.get("frame", "")
+            ]
+            if len(quarterly) >= 8:
+                # Sort by frame descending (e.g., CY2025Q4 > CY2025Q1)
+                quarterly.sort(key=lambda e: e["frame"], reverse=True)
+                return [e["val"] for e in quarterly]
+
+        return []
 
     @staticmethod
     def _compute_predictability_score(quarterly_revenue: list[float]) -> int:

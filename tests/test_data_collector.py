@@ -56,6 +56,20 @@ STUB_CIK = "0000320193"
 
 STUB_XBRL_FACTS = {
     "Revenues": [{"val": 383_285_000_000, "end": "2024-09-28", "fy": 2024, "fp": "FY"}],
+    "RevenueFromContractWithCustomerExcludingAssessedTax": [
+        {"val": 94_930_000_000, "end": "2024-12-28", "frame": "CY2024Q4"},
+        {"val": 90_753_000_000, "end": "2024-09-28", "frame": "CY2024Q3"},
+        {"val": 85_777_000_000, "end": "2024-06-29", "frame": "CY2024Q2"},
+        {"val": 89_498_000_000, "end": "2024-03-30", "frame": "CY2024Q1"},
+        {"val": 94_836_000_000, "end": "2023-12-30", "frame": "CY2023Q4"},
+        {"val": 90_146_000_000, "end": "2023-09-30", "frame": "CY2023Q3"},
+        {"val": 81_797_000_000, "end": "2023-07-01", "frame": "CY2023Q2"},
+        {"val": 83_083_000_000, "end": "2023-04-01", "frame": "CY2023Q1"},
+        {"val": 117_154_000_000, "end": "2022-12-31", "frame": "CY2022Q4"},
+        {"val": 82_959_000_000, "end": "2022-07-02", "frame": "CY2022Q2"},
+        # Annual entry (no Q in frame) — should be filtered out
+        {"val": 383_285_000_000, "end": "2024-09-28", "frame": "CY2024"},
+    ],
     "NetIncomeLoss": [{"val": 93_736_000_000, "end": "2024-09-28", "fy": 2024, "fp": "FY"}],
 }
 
@@ -358,6 +372,11 @@ class TestCompanyPredictabilityScore:
             "src.agents.data_collector.yf.get_financial_statements",
             return_value=(financials, []),
         )
+        # Clear XBRL revenue so yfinance values are used
+        patches["xbrl"] = patch(
+            "src.agents.data_collector.edgar.get_financial_facts",
+            return_value=({"NetIncomeLoss": []}, []),
+        )
 
         with patches["market_data"], patches["financials"], patches["price_history"], \
              patches["insider_yf"], patches["institutional"], patches["peers"], \
@@ -377,6 +396,11 @@ class TestCompanyPredictabilityScore:
             "src.agents.data_collector.yf.get_financial_statements",
             return_value=(financials, []),
         )
+        # Clear XBRL revenue so yfinance values are used
+        patches["xbrl"] = patch(
+            "src.agents.data_collector.edgar.get_financial_facts",
+            return_value=({"NetIncomeLoss": []}, []),
+        )
 
         with patches["market_data"], patches["financials"], patches["price_history"], \
              patches["insider_yf"], patches["institutional"], patches["peers"], \
@@ -387,13 +411,18 @@ class TestCompanyPredictabilityScore:
             assert result.company_predictability_score <= 29
 
     def test_insufficient_quarters_defaults_to_50(self):
-        """Fewer than 8 quarters → default score of 50."""
+        """Fewer than 8 quarters from both sources → default score of 50."""
         patches = _patch_all_sources()
         financials = dict(STUB_FINANCIALS)
         financials["quarterly_revenue"] = [100_000, 105_000, 98_000]  # Only 3 quarters
         patches["financials"] = patch(
             "src.agents.data_collector.yf.get_financial_statements",
             return_value=(financials, []),
+        )
+        # Clear XBRL revenue too
+        patches["xbrl"] = patch(
+            "src.agents.data_collector.edgar.get_financial_facts",
+            return_value=({"NetIncomeLoss": []}, []),
         )
 
         with patches["market_data"], patches["financials"], patches["price_history"], \
@@ -413,6 +442,11 @@ class TestCompanyPredictabilityScore:
             "src.agents.data_collector.yf.get_financial_statements",
             return_value=(financials, []),
         )
+        # Also clear XBRL revenue data
+        patches["xbrl"] = patch(
+            "src.agents.data_collector.edgar.get_financial_facts",
+            return_value=({"NetIncomeLoss": []}, []),
+        )
 
         with patches["market_data"], patches["financials"], patches["price_history"], \
              patches["insider_yf"], patches["institutional"], patches["peers"], \
@@ -421,6 +455,52 @@ class TestCompanyPredictabilityScore:
 
             result = DataCollectorAgent().run("AAPL")
             assert result.company_predictability_score == 50
+
+    def test_xbrl_quarterly_revenue_used_for_predictability(self):
+        """XBRL quarterly revenue (10+ quarters) should produce a real score, not default 50."""
+        patches = _patch_all_sources()
+        # yfinance only has 5 quarters (below threshold)
+        financials = dict(STUB_FINANCIALS)
+        financials["quarterly_revenue"] = [94_930, 90_753, 85_777, 89_498, 94_836]
+        patches["financials"] = patch(
+            "src.agents.data_collector.yf.get_financial_statements",
+            return_value=(financials, []),
+        )
+        # XBRL has 10 quarterly entries via STUB_XBRL_FACTS (default)
+
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+            # AAPL has stable revenue — should score well above default 50
+            assert result.company_predictability_score != 50
+            assert result.company_predictability_score >= 70  # stable large-cap
+
+    def test_xbrl_fallback_to_yfinance_when_no_xbrl_revenue(self):
+        """When XBRL has no revenue concepts, use yfinance quarterly_revenue."""
+        patches = _patch_all_sources()
+        # yfinance has 8 stable quarters
+        financials = dict(STUB_FINANCIALS)
+        financials["quarterly_revenue"] = [100_000, 100_500, 99_500, 100_200, 99_800, 100_100, 99_900, 100_300]
+        patches["financials"] = patch(
+            "src.agents.data_collector.yf.get_financial_statements",
+            return_value=(financials, []),
+        )
+        # XBRL has no revenue concepts
+        patches["xbrl"] = patch(
+            "src.agents.data_collector.edgar.get_financial_facts",
+            return_value=({"NetIncomeLoss": []}, []),
+        )
+
+        with patches["market_data"], patches["financials"], patches["price_history"], \
+             patches["insider_yf"], patches["institutional"], patches["peers"], \
+             patches["cik"], patches["xbrl"], patches["filings"], \
+             patches["filing_text"], patches["insider_edgar"], patches["macro"]:
+
+            result = DataCollectorAgent().run("AAPL")
+            assert result.company_predictability_score >= 90  # very stable
 
 
 class TestInsiderDataSourcePriority:

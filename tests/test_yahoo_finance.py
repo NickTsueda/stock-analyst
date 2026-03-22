@@ -180,37 +180,67 @@ class TestGetInstitutionalHolders:
 
 class TestGetPeerData:
     @patch("src.data_sources.yahoo_finance.yf.Ticker")
-    def test_returns_peers(self, mock_yf):
-        # Main ticker
-        main = MagicMock()
-        main.info = {
-            "industry": "Consumer Electronics",
-            "marketCap": 2_750_000_000_000,
-            "sector": "Technology",
-        }
+    @patch("src.data_sources.yahoo_finance._fetch_recommended_symbols")
+    def test_returns_peers_from_recommended_symbols(self, mock_rec, mock_yf):
+        """Recommended symbols within market cap band are returned as peers."""
+        mock_rec.return_value = ["MSFT", "GOOG", "META"]
 
-        # Peer ticker
-        peer = MagicMock()
-        peer.info = {
-            "shortName": "Microsoft Corp",
-            "marketCap": 2_900_000_000_000,
-            "trailingPE": 35.2,
-            "priceToSalesTrailing12Months": 12.1,
-            "revenueGrowth": 0.16,
-            "profitMargins": 0.36,
-            "returnOnEquity": 0.38,
-            "industry": "Consumer Electronics",
+        peer_info = {
+            "MSFT": {"shortName": "Microsoft Corp", "marketCap": 2_900_000_000_000,
+                      "trailingPE": 35.2, "priceToSalesTrailing12Months": 12.1,
+                      "revenueGrowth": 0.16, "profitMargins": 0.36, "returnOnEquity": 0.38},
+            "GOOG": {"shortName": "Alphabet Inc", "marketCap": 1_800_000_000_000,
+                      "trailingPE": 24.1, "priceToSalesTrailing12Months": 6.2,
+                      "revenueGrowth": 0.13, "profitMargins": 0.25, "returnOnEquity": 0.28},
+            "META": {"shortName": "Meta Platforms", "marketCap": 1_200_000_000_000,
+                      "trailingPE": 28.0, "priceToSalesTrailing12Months": 8.5,
+                      "revenueGrowth": 0.22, "profitMargins": 0.30, "returnOnEquity": 0.33},
         }
 
         def side_effect(ticker):
-            if ticker == "AAPL":
-                return main
-            return peer
+            m = MagicMock()
+            m.info = peer_info.get(ticker, {})
+            return m
 
         mock_yf.side_effect = side_effect
         result, warnings = get_peer_data("AAPL", "Consumer Electronics", 2_750_000_000_000)
-        # Result may be empty if no peers in screenr — this tests the shape
-        assert isinstance(result, list)
+
+        assert len(result) == 3
+        assert result[0]["ticker"] == "MSFT"
+        assert result[0]["name"] == "Microsoft Corp"
+        assert result[0]["pe_ratio"] == 35.2
+
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    @patch("src.data_sources.yahoo_finance._fetch_recommended_symbols")
+    def test_filters_by_market_cap_band(self, mock_rec, mock_yf):
+        """Peers outside 0.25x-4x market cap band are excluded."""
+        mock_rec.return_value = ["TINY", "BIG", "JUST_RIGHT"]
+
+        peer_info = {
+            "TINY": {"shortName": "Tiny Corp", "marketCap": 100_000_000},        # Way too small
+            "BIG": {"shortName": "Huge Corp", "marketCap": 50_000_000_000_000},   # Way too big
+            "JUST_RIGHT": {"shortName": "Good Corp", "marketCap": 2_000_000_000_000},
+        }
+
+        def side_effect(ticker):
+            m = MagicMock()
+            m.info = peer_info.get(ticker, {})
+            return m
+
+        mock_yf.side_effect = side_effect
+        result, warnings = get_peer_data("AAPL", "Consumer Electronics", 2_750_000_000_000)
+
+        assert len(result) == 1
+        assert result[0]["ticker"] == "JUST_RIGHT"
+
+    @patch("src.data_sources.yahoo_finance._fetch_recommended_symbols")
+    def test_returns_empty_when_no_recommended_symbols(self, mock_rec):
+        """When Yahoo API returns no recommendations, returns empty with warning."""
+        mock_rec.return_value = []
+        result, warnings = get_peer_data("AAPL", "Consumer Electronics", 2_750_000_000_000)
+
+        assert result == []
+        assert any("No peers found" in w for w in warnings)
 
     @patch("src.data_sources.yahoo_finance.yf.Ticker")
     def test_handles_failure(self, mock_yf):
@@ -237,3 +267,13 @@ class TestYahooFinanceIntegration:
     def test_aapl_price_history(self):
         result, warnings = get_price_history("AAPL")
         assert len(result) > 100  # ~250 trading days in a year
+
+    def test_aapl_peer_data(self):
+        """AAPL should return 3-5 real peers with fundamentals."""
+        result, warnings = get_peer_data("AAPL", "Consumer Electronics", 2_750_000_000_000)
+        assert len(result) >= 3
+        # Each peer should have required fields
+        for peer in result:
+            assert peer["ticker"]
+            assert peer["name"]
+            assert peer["market_cap"] > 0
