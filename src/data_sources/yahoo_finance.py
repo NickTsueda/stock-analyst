@@ -14,12 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 def _df_to_dict(df) -> dict:
-    """Convert a pandas DataFrame to a nested dict {row_label: {col_label: value}}."""
+    """Convert a pandas DataFrame to a nested dict {row_label: {col_label: value}}.
+
+    NaN values are excluded — they mean 'no data' and waste tokens if sent to Claude.
+    """
     if df is None or df.empty:
         return {}
     result = {}
     for row_label in df.index:
-        result[str(row_label)] = {}
+        row_data = {}
         for col_label in df.columns:
             val = df.loc[row_label, col_label]
             # Convert numpy types to native Python
@@ -27,7 +30,12 @@ def _df_to_dict(df) -> dict:
                 val = val.item() if hasattr(val, "item") else val
             except (ValueError, TypeError):
                 pass
-            result[str(row_label)][str(col_label)] = val
+            # Skip NaN values
+            if isinstance(val, float) and val != val:
+                continue
+            row_data[str(col_label)] = val
+        if row_data:
+            result[str(row_label)] = row_data
     return result
 
 

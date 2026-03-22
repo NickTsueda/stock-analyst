@@ -102,6 +102,42 @@ class TestGetFinancialStatements:
         assert len(warnings) == 0
 
     @patch("src.data_sources.yahoo_finance.yf.Ticker")
+    def test_nan_values_excluded_from_output(self, mock_yf):
+        """NaN values in financial DataFrames should not appear in output dicts."""
+        ticker = MagicMock()
+        # Balance sheet with a stale 5th column that's all NaN
+        ticker.balance_sheet = pd.DataFrame(
+            {
+                "2024-09-30": [352_583_000_000, 104_590_000_000],
+                "2023-09-30": [345_000_000_000, 100_000_000_000],
+                "2021-09-30": [float("nan"), float("nan")],  # stale year
+            },
+            index=["Total Assets", "Total Debt"],
+        )
+        ticker.financials = pd.DataFrame(
+            {"2024-09-30": [383_285_000_000]},
+            index=["Total Revenue"],
+        )
+        ticker.cashflow = pd.DataFrame(
+            {"2024-09-30": [118_254_000_000]},
+            index=["Operating Cash Flow"],
+        )
+        ticker.quarterly_financials = pd.DataFrame()
+        mock_yf.return_value = ticker
+
+        result, _ = get_financial_statements("AAPL")
+        bs = result["balance_sheet"]
+
+        # No NaN values should appear anywhere
+        for row_label, row_data in bs.items():
+            for col_label, val in row_data.items():
+                assert val == val, f"NaN found at {row_label}[{col_label}]"
+
+        # Stale year should not appear (both values were NaN)
+        assert "2021-09-30" not in bs["Total Assets"]
+        assert "2021-09-30" not in bs["Total Debt"]
+
+    @patch("src.data_sources.yahoo_finance.yf.Ticker")
     def test_handles_failure(self, mock_yf):
         mock_yf.side_effect = Exception("Network error")
         result, warnings = get_financial_statements("AAPL")

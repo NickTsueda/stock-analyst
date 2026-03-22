@@ -2,6 +2,22 @@
 
 Improvements identified during development that are out of scope for current bug fix sessions but worth incorporating later.
 
+## Stack Rank (by impact on Phase 2 success)
+
+| Rank | # | Enhancement | Priority | Rationale |
+|------|---|-------------|----------|-----------|
+| 1 | 1 | yfinance column name resilience | High | Silent data loss — next yfinance update could break any field |
+| 2 | 2 | Reduce redundant Ticker instantiation | High | 5-6 Ticker objects per analysis = unnecessary API calls + latency |
+| 3 | 12 | Data Collector parallelization | Medium | 25s → 10-15s collection time — critical for Streamlit UX |
+| 4 | 6 | EDGAR Form 4 parse failure visibility | Medium | Silent failures hide data quality issues from the pipeline |
+| 5 | 11 | Financial statement token optimization | Medium | 2-3K wasted tokens per statement — adds up across 3 statements |
+| 6 | 3 | Deseasonalized predictability score | Medium | Confidence Score accuracy for seasonal/growth companies |
+| 7 | 8 | Peer discovery fallback | Medium | Undocumented API dependency, but working reliably now |
+| 8 | 4 | Test stub mutation safety | Medium | Latent risk, not actively causing failures |
+| 9 | 9 | Parallel peer data fetching | Low | ~10s savings, subset of #12 |
+| 10 | 5 | yfinance revenue row robustness | Low | Mitigated by XBRL primary source |
+| 11 | 7 | XSLT prefix handling for all filings | Low | Defensive — only Form 4 affected today |
+
 ---
 
 ## 1. yfinance Column Name Resilience
@@ -147,9 +163,41 @@ Similarly, high-growth companies (e.g., MSFT revenue grew from ~$26B to ~$70B/qu
 
 ---
 
-## 10. Balance Sheet Stale NaN Year (Bug 6 — Still Open)
+## 10. ~~Balance Sheet Stale NaN Year~~ — RESOLVED
 
-**File:** Data sources returning a 5th year of all-NaN values
-**Priority:** Low — minor token waste, cosmetic
+**Status:** Fixed in Bug 6 session (2026-03-22). NaN values are now filtered in `_df_to_dict()`.
 
-**Status:** Lowest priority bug. Filter out years where all values are NaN before including in DataPackage.
+---
+
+## 11. Financial Statement Token Optimization
+
+**Source:** Bug 6 fix session (2026-03-22)
+**File:** `src/data_sources/yahoo_finance.py` — `_df_to_dict()`, `get_financial_statements()`
+**Priority:** Medium — reduces Claude prompt token usage
+
+**Problem:** yfinance returns 39-69 line items per financial statement, many of which are redundant (e.g., "Net Income", "Net Income Common Stockholders", "Net Income Including Noncontrolling Interests", "Diluted NI Availto Com Stockholders" all have identical values for most companies). Sending all of them to the Financial Analyst wastes ~2-3K tokens per statement and adds noise.
+
+**Proposed fix:** Curate a list of ~15-20 essential line items per statement type (revenue, COGS, gross profit, operating income, net income, EPS for income; total assets, total liabilities, equity, cash, debt for balance sheet; operating/investing/financing cash flow). Filter `_df_to_dict()` output to only include these, or add a `slim=True` mode that the Data Collector can use.
+
+**Trade-off:** May miss unusual but meaningful items (e.g., large impairments, restructuring charges). Could keep a "notable items" pass that includes anything > 10% of revenue that isn't in the curated list.
+
+---
+
+## 12. Data Collector Parallelization
+
+**Source:** Bug 6 fix session (2026-03-22) — observed sequential data source fetching
+**File:** `src/agents/data_collector.py` — `run()`
+**Priority:** Medium — performance improvement for Phase 2 UX
+
+**Problem:** `DataCollectorAgent.run()` fetches data sources sequentially: yfinance market data → yfinance financials → yfinance price history → yfinance insiders → yfinance institutional → SEC EDGAR → FRED → peers. The total wall time is 20-30 seconds. Since yfinance, EDGAR, and FRED are independent, they could run in parallel.
+
+**Proposed fix:** Use `concurrent.futures.ThreadPoolExecutor` to run the three independent source groups in parallel:
+- Group 1: All yfinance calls (market_data, financials, price_history, insider, institutional)
+- Group 2: All SEC EDGAR calls (CIK → XBRL + filings + insider)
+- Group 3: FRED macro data
+
+Peer data must wait for market_data (needs market cap), and insider resolution must wait for both EDGAR and yfinance insiders.
+
+**Expected impact:** Could reduce total collection time from ~25s to ~10-15s. Important for Streamlit UX — users will be watching a loading spinner.
+
+**Trade-off:** More complex error handling. Thread safety of yfinance Ticker objects should be verified (each group uses its own Ticker instance, so likely safe).

@@ -48,6 +48,9 @@
 3. Added 3 new tests: XBRL quarterly revenue used for scoring, XBRL-to-yfinance fallback, no-revenue-anywhere defaults to 50. Updated 3 existing tests to account for XBRL priority.
 **Verified:** AAPL: 53/100 (CV=0.28, seasonal revenue swings). MSFT: 41/100 (CV=0.38, strong growth trend creates high dispersion). Scores now differ and reflect actual revenue characteristics. 99 tests pass.
 
-## Bug 6: Balance sheet includes a stale 5th year of all NaN values
-**Issue:** Every balance sheet line item includes `'2021-06-30 00:00:00': nan` (MSFT) or `'2021-09-30 00:00:00': nan` (AAPL) — a year with no data. This wastes prompt tokens and could confuse Claude.
-**Impact:** Minor — token waste and potential noise in Claude's analysis.
+## Bug 6: Balance sheet includes a stale 5th year of all NaN values — FIXED
+**File:** `src/data_sources/yahoo_finance.py` (`_df_to_dict()`)
+**Issue:** Every balance sheet line item includes `'2021-06-30 00:00:00': nan` (MSFT) or `'2021-09-30 00:00:00': nan` (AAPL) — a year with no data. This wastes prompt tokens and could confuse Claude. Affected all three financial statements (income, balance sheet, cash flow), not just balance sheet.
+**Root cause:** `_df_to_dict()` converted every DataFrame cell to a dict entry, including NaN values. yfinance returns 5 columns for financial statements, but the 5th/oldest year is overwhelmingly NaN (e.g., 63/69 for balance sheet, 33/39 for income, 45/53 for cash flow).
+**Fix:** Added NaN filtering to `_df_to_dict()` — skip any value where `val != val` (IEEE 754 NaN check). Also skip rows that end up entirely empty after NaN removal. Line items that have real data in the older year (e.g., Capital Lease Obligations) are preserved.
+**Verified:** AAPL output has zero `nan` values. Line items now show only years with actual data. 1 new test added, 103 tests pass.
