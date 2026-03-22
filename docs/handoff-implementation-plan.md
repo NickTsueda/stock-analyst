@@ -546,9 +546,9 @@ git commit -m "Add Thesis Builder agent with multi-source synthesis"
 - Create: `~/stock-analyst/src/agents/orchestrator.py`
 - Create: `~/stock-analyst/tests/test_orchestrator.py`
 
-- [ ] **Step 1: Write tests** — mock all sub-agents, verify pipeline flow, test error-in-middle returns partial results
-- [ ] **Step 2: Run tests to verify they fail**
-- [ ] **Step 3: Implement orchestrator.py**
+- [x] **Step 1: Write tests** — mock all sub-agents, verify pipeline flow, test error-in-middle returns partial results
+- [x] **Step 2: Run tests to verify they fail**
+- [x] **Step 3: Implement orchestrator.py**
 
 `OrchestratorAgent.run(ticker: str, progress_callback=None) -> tuple[DataPackage, FinancialAnalysis | None, InvestmentThesis | None]`
 
@@ -569,8 +569,8 @@ Pipeline:
 
 `progress_callback` is `(stage: str, status: str) -> None` for Streamlit updates.
 
-- [ ] **Step 4: Run tests to verify they pass**
-- [ ] **Step 5: Commit**
+- [x] **Step 4: Run tests to verify they pass**
+- [x] **Step 5: Commit**
 ```bash
 git commit -m "Add Orchestrator agent with pipeline coordination"
 ```

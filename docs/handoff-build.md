@@ -259,16 +259,61 @@ pytest tests/ -v  # Should show 118 passing
 
 ### What the Next Session Should Do
 
-Continue from Task 10:
-1. **Task 10: Orchestrator Agent** — pipeline coordination, data quality gate, revision loop (max 1 iteration, 30s timeout), confidence score post-processing
-2. **Tasks 11-13: Streamlit UI** — charts.py, components.py, app.py
-3. **Task 14: Error handling** — invalid ticker, missing API key, rate limits
-4. **Task 15: README**
+~~Continue from Task 10~~ — see Session 6 below.
+
+---
+
+## Session 6: Build Phase 2 — Orchestrator Agent
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main`
+
+### What Was Built
+
+#### Task 10: Orchestrator Agent (DONE)
+- `src/agents/orchestrator.py` — `OrchestratorAgent` class:
+  - `run(ticker, progress_callback) -> tuple[DataPackage, FinancialAnalysis | None, InvestmentThesis | None]`
+  - Pipeline: Data Collector → data quality gate → Financial Analyst → Thesis Builder → revision loop → confidence post-processing
+  - Data quality gate (deterministic, no Claude call): <20 abort, 20-49 warn with LimitationNote, ≥50 proceed
+  - Revision loop: max 1 iteration, graceful timeout/error fallback to pre-revision thesis
+  - `_compute_confidence(data, analysis) -> ConfidenceScore` — 6-factor weighted average
+  - `_compute_insider_signal(data, analysis) -> int` — asymmetric heuristic using lookup table
+  - Guardrail: Data Completeness < 30 caps overall score at 40
+  - Progress callback `(stage: str, status: str) -> None` for Streamlit streaming
+  - Partial failure handling: never crashes, returns what it has
+- `tests/test_orchestrator.py` — 32 tests:
+  - Pipeline tests (5): returns 3-tuple, calls agents in order, thesis has confidence, ticker uppercased, progress callback
+  - Data quality gate (3): abort <20, warn 20-49, proceed ≥50
+  - Revision loop (3): no revision when no request, revision triggered, timeout uses pre-revision
+  - Confidence score (9): weighted average, 6 drivers, weights sum to 1.0, HIGH/MEDIUM/LOW levels, guardrail cap, summary from TB, driver details from TB
+  - Insider signal heuristic (8): all 6 direction×lean combinations + no data + neutral activity
+  - Error handling (4): FA failure, TB failure, DC failure, revision failure
+
+### Test Results
+
+- **168 tests pass, 0 fail**
+
+### Decisions Made
+
+1. **Lookup table for insider signal** — `_INSIDER_SIGNAL_MAP` keyed by `(direction, lean)` tuples instead of nested if/elif. Self-documenting, trivially testable, matches design doc table.
+2. **OrchestratorAgent does not extend BaseAgent** — it never calls Claude directly. Has its own `__init__` that takes `client` and `model` to pass through to sub-agents.
+3. **Revision timeout is best-effort** — checks elapsed time after each sub-call rather than using threading/signals. Falls back to pre-revision thesis on any exception (timeout, API error, etc.).
+4. **Impact thresholds for driver labels** — score ≥60 → "positive", <40 → "negative", 40-59 → "neutral". Simple but effective.
+
+### What the Next Session Should Do
+
+Continue from Task 11:
+1. **Task 11: Chart Builders** — Plotly charts (price with MAs, revenue/profit bars, margin trends)
+2. **Task 12: UI Components** — Streamlit rendering (recommendation badge, confidence gauge, thesis sections, pipeline status)
+3. **Task 13: Main App** — `app.py` with 3-tab layout, session state, streaming progress, disclaimer in 2 locations
+4. **Task 14: Error handling** — invalid ticker, missing API key, rate limits
+5. **Task 15: README**
 
 ### How to Resume
 
 ```bash
 cd ~/stock-analyst
 source .venv/bin/activate
-pytest tests/ -v  # Should show 136 passing
+pytest tests/ -v  # Should show 168 passing
 ```
