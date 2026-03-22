@@ -308,12 +308,12 @@ class DataCollectorAgent:
         )
 
     @staticmethod
-    def _extract_quarterly_revenue_from_xbrl(xbrl_facts: dict) -> list[float]:
-        """Extract quarterly revenue values from XBRL facts.
+    def _extract_quarterly_revenue_from_xbrl(xbrl_facts: dict) -> list[dict]:
+        """Extract quarterly revenue entries from XBRL facts.
 
-        Looks for revenue concepts and filters for single-quarter entries
-        (identified by 'Q' in the frame field). Returns values sorted by
-        date descending (most recent first).
+        Returns list of dicts with 'frame' and 'val' keys, sorted by frame
+        descending. Frame format: 'CY2024Q4'. Only includes entries with
+        'Q' in the frame (single-quarter, not annual).
         """
         revenue_concepts = [
             "RevenueFromContractWithCustomerExcludingAssessedTax",
@@ -330,24 +330,41 @@ class DataCollectorAgent:
                 if "frame" in e and "Q" in e.get("frame", "")
             ]
             if len(quarterly) >= 8:
-                # Sort by frame descending (e.g., CY2025Q4 > CY2025Q1)
                 quarterly.sort(key=lambda e: e["frame"], reverse=True)
-                return [e["val"] for e in quarterly]
+                return [{"frame": e["frame"], "val": e["val"]} for e in quarterly]
 
         return []
 
     @staticmethod
-    def _compute_predictability_score(quarterly_revenue: list[float]) -> int:
-        """Compute company predictability from quarterly revenue volatility.
+    def _compute_predictability_score(quarterly_entries: list[dict | float]) -> int:
+        """Compute company predictability from quarterly revenue patterns.
 
-        Uses coefficient of variation (CV = std/mean).
-        Requires >= 8 quarters; defaults to 50 if insufficient data.
+        Deseasonalized method (preferred): computes YoY growth rates for
+        same-quarter pairs (e.g., Q1 2024 vs Q1 2023), then measures the
+        CV of those growth rates. This captures consistency of the company's
+        growth pattern without penalizing seasonality or steady growth.
+
+        Fallback (raw CV): used when frame info is unavailable. Measures
+        raw revenue dispersion — penalizes seasonal and growth companies.
+
+        Requires >= 8 quarters of data; defaults to 50 if insufficient.
         """
-        if len(quarterly_revenue) < 8:
+        if len(quarterly_entries) < 8:
             return 50
 
-        # Filter out zeros/negatives
-        valid = [r for r in quarterly_revenue if r > 0]
+        # Try deseasonalized YoY method if we have frame info
+        if quarterly_entries and isinstance(quarterly_entries[0], dict):
+            yoy_rates = DataCollectorAgent._compute_yoy_growth_rates(quarterly_entries)
+            if len(yoy_rates) >= 4:
+                cv = statistics.stdev(yoy_rates) if len(yoy_rates) > 1 else 0.0
+                return DataCollectorAgent._cv_to_score(cv)
+
+        # Fallback: raw CV of revenue values
+        values = [
+            (e["val"] if isinstance(e, dict) else e)
+            for e in quarterly_entries
+        ]
+        valid = [v for v in values if isinstance(v, (int, float)) and v > 0]
         if len(valid) < 8:
             return 50
 
@@ -355,10 +372,57 @@ class DataCollectorAgent:
         if mean == 0:
             return 50
 
-        stdev = statistics.stdev(valid)
-        cv = stdev / mean
+        cv = statistics.stdev(valid) / mean
+        return DataCollectorAgent._cv_to_score(cv)
 
-        # Map CV to score with linear interpolation within bands
+    @staticmethod
+    def _compute_yoy_growth_rates(entries: list[dict]) -> list[float]:
+        """Compute YoY growth rates from same-quarter pairs.
+
+        Parses frames like 'CY2024Q4' into (year, quarter), groups by quarter,
+        then computes (this_year - last_year) / last_year for consecutive years.
+        """
+        # Parse frames into (year, quarter, value)
+        parsed = []
+        for e in entries:
+            frame = e.get("frame", "")
+            val = e.get("val", 0)
+            if not frame or val is None or val <= 0:
+                continue
+            # Parse CY2024Q4 → year=2024, quarter=4
+            try:
+                q_idx = frame.index("Q")
+                year = int(frame[2:q_idx])
+                quarter = int(frame[q_idx + 1:])
+                parsed.append((year, quarter, val))
+            except (ValueError, IndexError):
+                continue
+
+        # Group by quarter number
+        from collections import defaultdict
+        by_quarter: dict[int, list[tuple[int, float]]] = defaultdict(list)
+        for year, quarter, val in parsed:
+            by_quarter[quarter].append((year, val))
+
+        # For each quarter, sort by year and compute consecutive YoY rates
+        yoy_rates = []
+        for _q, year_vals in by_quarter.items():
+            year_vals.sort()  # ascending by year
+            for i in range(1, len(year_vals)):
+                prev_year, prev_val = year_vals[i - 1]
+                curr_year, curr_val = year_vals[i]
+                if curr_year == prev_year + 1 and prev_val > 0:
+                    rate = (curr_val - prev_val) / prev_val
+                    yoy_rates.append(rate)
+
+        return yoy_rates
+
+    @staticmethod
+    def _cv_to_score(cv: float) -> int:
+        """Map coefficient of variation to predictability score (0-100).
+
+        5 bands with linear interpolation within each band.
+        """
         bands = [
             (0.00, 0.05, 90, 100),   # Very stable
             (0.05, 0.15, 70, 89),    # Stable growth
@@ -370,13 +434,11 @@ class DataCollectorAgent:
         for cv_low, cv_high, score_high, score_low in bands:
             if cv_low <= cv < cv_high:
                 if cv_high == float("inf"):
-                    # Cap at minimum band
                     return max(10, score_high - int((cv - cv_low) * 20))
-                # Linear interpolation: lower CV → higher score
                 t = (cv - cv_low) / (cv_high - cv_low)
                 return round(score_low - t * (score_low - score_high))
 
-        return 50  # Shouldn't reach here
+        return 50
 
     @staticmethod
     def _add_warnings(

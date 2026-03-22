@@ -502,6 +502,47 @@ class TestCompanyPredictabilityScore:
             result = DataCollectorAgent().run("AAPL")
             assert result.company_predictability_score >= 90  # very stable
 
+    def test_deseasonalized_yoy_scores_seasonal_company_high(self):
+        """Seasonal company with consistent YoY pattern should score high (not penalized)."""
+        # AAPL-like: strong Q4 holiday quarter, consistent ~5% YoY growth
+        seasonal_entries = [
+            {"frame": "CY2024Q4", "val": 126_000}, {"frame": "CY2024Q3", "val": 95_000},
+            {"frame": "CY2024Q2", "val": 88_000},  {"frame": "CY2024Q1", "val": 92_000},
+            {"frame": "CY2023Q4", "val": 120_000}, {"frame": "CY2023Q3", "val": 90_500},
+            {"frame": "CY2023Q2", "val": 84_000},  {"frame": "CY2023Q1", "val": 87_600},
+            {"frame": "CY2022Q4", "val": 114_300}, {"frame": "CY2022Q3", "val": 86_200},
+            {"frame": "CY2022Q2", "val": 80_000},  {"frame": "CY2022Q1", "val": 83_400},
+        ]
+        score = DataCollectorAgent._compute_predictability_score(seasonal_entries)
+        # Raw CV would penalize the Q4 spike (~0.15 CV → score ~69)
+        # YoY method sees consistent ~5% growth each quarter → score 90+
+        assert score >= 85, f"Seasonal company should score high, got {score}"
+
+    def test_deseasonalized_yoy_scores_erratic_company_low(self):
+        """Erratic YoY growth rates should produce a low score."""
+        erratic_entries = [
+            {"frame": "CY2024Q4", "val": 150_000}, {"frame": "CY2024Q3", "val": 50_000},
+            {"frame": "CY2024Q2", "val": 200_000}, {"frame": "CY2024Q1", "val": 30_000},
+            {"frame": "CY2023Q4", "val": 80_000},  {"frame": "CY2023Q3", "val": 120_000},
+            {"frame": "CY2023Q2", "val": 40_000},  {"frame": "CY2023Q1", "val": 180_000},
+            {"frame": "CY2022Q4", "val": 60_000},  {"frame": "CY2022Q3", "val": 90_000},
+        ]
+        score = DataCollectorAgent._compute_predictability_score(erratic_entries)
+        assert score <= 29, f"Erratic company should score low, got {score}"
+
+    def test_yoy_growth_rates_computation(self):
+        """Verify YoY growth rate pairs are computed correctly."""
+        entries = [
+            {"frame": "CY2024Q1", "val": 105},
+            {"frame": "CY2023Q1", "val": 100},
+            {"frame": "CY2024Q2", "val": 210},
+            {"frame": "CY2023Q2", "val": 200},
+        ]
+        rates = DataCollectorAgent._compute_yoy_growth_rates(entries)
+        assert len(rates) == 2
+        assert abs(rates[0] - 0.05) < 0.001  # Q1: 105/100 - 1
+        assert abs(rates[1] - 0.05) < 0.001  # Q2: 210/200 - 1
+
 
 class TestInsiderDataSourcePriority:
     """Test that EDGAR is primary for insider data, yfinance is fallback."""
