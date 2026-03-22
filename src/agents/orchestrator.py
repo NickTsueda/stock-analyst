@@ -112,6 +112,23 @@ class OrchestratorAgent:
             ))
             return data, None, None
 
+        # Abort if market data is a zero-value shell (nonexistent ticker)
+        # yfinance returns MarketData with price=0 for invalid tickers instead of None
+        _zero_price_shell = (
+            data.market_data is not None
+            and (data.market_data.current_price or 0) == 0
+            and (data.market_data.market_cap or 0) == 0
+        )
+        if _zero_price_shell and data.filing_text is None:
+            logger.warning("Zero-price market data for %s, aborting analysis", ticker)
+            _report("Data quality check", "failed")
+            data.warnings.append(LimitationNote(
+                "orchestrator",
+                "No meaningful data found. Ticker may be invalid or delisted.",
+                "error",
+            ))
+            return data, None, None
+
         if score < 50:
             logger.warning("Data completeness %d < 50 for %s, proceeding with warning", score, ticker)
             data.warnings.append(LimitationNote(

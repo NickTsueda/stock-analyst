@@ -6,12 +6,14 @@ from tests.conftest import make_sample_data_package
 from src.models import (
     DataPackage,
     FinancialAnalysis,
+    FinancialStatements,
     InvestmentThesis,
     InvestmentCase,
     ConfidenceScore,
     ConfidenceDriver,
     ConfidenceLevel,
     LimitationNote,
+    MarketData,
     Recommendation,
     CompanyType,
     RevisionRequest,
@@ -190,6 +192,27 @@ class TestDataQualityGate:
 
         assert data.data_completeness_score >= 50
         mock_agents["fa"].run.assert_called_once()
+
+    def test_abort_when_zero_price_shell(self, mock_agents):
+        """Zero-price MarketData (nonexistent ticker) → abort before Claude calls."""
+        shell_pkg = DataPackage(
+            ticker="XXXXX",
+            company_name="",
+            market_data=MarketData(current_price=0, market_cap=0),
+            financials=FinancialStatements(income_statement={}, balance_sheet={}, cash_flow={}),
+            macro=make_sample_data_package().macro,
+        )
+        mock_agents["dc"].run.return_value = shell_pkg
+
+        orch = OrchestratorAgent(client=MagicMock())
+        data, analysis, thesis = orch.run("XXXXX")
+
+        assert analysis is None
+        assert thesis is None
+        mock_agents["fa"].run.assert_not_called()
+        has_warning = any("invalid" in w.message.lower() or "no meaningful" in w.message.lower()
+                          for w in data.warnings)
+        assert has_warning
 
 
 # --- Revision Loop Tests ---

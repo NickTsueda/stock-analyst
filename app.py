@@ -145,10 +145,20 @@ def _run_pipeline(ticker: str) -> None:
 
     elapsed = (datetime.now(timezone.utc) - start_time).total_seconds()
 
-    # Detect invalid/unknown ticker: data collected but everything is empty
+    # Detect invalid/unknown ticker: no real data found
+    # yfinance returns objects with zero/empty values for nonexistent tickers
+    # instead of None, so check for meaningful content, not just existence
+    _has_real_market_data = (
+        data.market_data is not None
+        and (data.market_data.current_price or 0) > 0
+    )
+    _has_real_financials = (
+        data.financials is not None
+        and (data.financials.income_statement or data.financials.balance_sheet)
+    )
     if (
-        data.market_data is None
-        and data.financials is None
+        not _has_real_market_data
+        and not _has_real_financials
         and data.filing_text is None
     ):
         status_container.update(
