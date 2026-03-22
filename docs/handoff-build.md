@@ -317,3 +317,93 @@ cd ~/stock-analyst
 source .venv/bin/activate
 pytest tests/ -v  # Should show 168 passing
 ```
+
+---
+
+## Session 7: Build Phase 2 — UI + Error Handling + Code Review
+
+**Date:** 2026-03-22
+**Status:** Complete
+**Branch:** `main`
+
+### What Was Built
+
+#### Task 11: Chart Builders (DONE — previous session)
+- Already committed at `a2c6b22`
+
+#### Task 12: UI Components (DONE)
+- `src/ui/components.py` — 10 Streamlit rendering functions:
+  - `render_hero(data, thesis)` — company name + ticker + price + pill-shaped recommendation badge (color-coded BUY/HOLD/SELL)
+  - `render_confidence_score(confidence)` — gauge chart + level label + summary + expandable driver breakdown table with impact indicators
+  - `render_executive_summary(thesis)` — prose rendering
+  - `render_thesis_cases(thesis)` — 3-column bull/base/bear cards with color-coded left borders and probabilities
+  - `render_risks_catalysts(thesis)` — 2-column red risks / green catalysts
+  - `render_insider_institutional(thesis, data)` — 2-column insider activity + institutional ownership with top holders expander
+  - `render_macro_context(thesis, data)` — macro summary with fallback to raw FRED indicators
+  - `render_financial_analysis(analysis, data)` — price chart, side-by-side revenue/margin charts, ratio table (from analysis.ratios or market_data fallback), strengths/concerns, expandable Agent Reasoning
+  - `render_raw_data(data)` — completeness indicator with score color, source status list, expandable sections per data source, warnings/limitations log
+  - `render_disclaimer_footer()` — fixed-position persistent footer with disclaimer text
+
+#### Task 13: Main App (DONE)
+- `app.py` — Streamlit entry point with:
+  - Wide layout, page title "AI Stock Analyst", 📊 icon
+  - Ticker text input + Analyze button
+  - `st.status()` pipeline progress with live stage updates via Orchestrator progress_callback closure
+  - Session state persistence (data, analysis, thesis, timestamp, elapsed)
+  - Hero section + confidence gauge rendered above tabs
+  - 3-tab layout: Investment Thesis | Financial Analysis | Raw Data
+  - Disclaimers in 2 locations: persistent footer (all pages) + `st.warning()` banner (Thesis tab only)
+  - Footer metadata: timestamp + elapsed time
+
+#### Task 14: Error Handling (DONE)
+- Ticker format validation via regex (`^[A-Z]{1,5}([.\-][A-Z]{1,2})?$`)
+- Missing ANTHROPIC_API_KEY: `st.error`, blocks pipeline
+- Invalid ANTHROPIC_API_KEY: catches `anthropic.AuthenticationError`
+- Rate limited: catches `anthropic.RateLimitError` with retry guidance
+- Missing FRED_API_KEY: `st.info` non-blocking warning
+- Unknown ticker (all data sources return empty): `st.error` with suggestion
+- Pipeline exception: `st.error` with exception details
+
+#### Code Review (DONE)
+- 3-agent parallel review of full codebase (UI, agent pipeline, data sources)
+- 5 bugs found, 13 new entries added to `docs/future-enhancements.md` (now 25 total)
+- Bugs ranked by impact, fixes specified with code snippets
+
+### Test Results
+
+- **181 tests pass, 0 fail** (unchanged — no test-affecting changes)
+
+### Decisions Made
+
+1. **Components as pure rendering functions** — each takes typed models and calls `st.*` methods. Charts built in `charts.py` are rendered here via `st.plotly_chart()`, keeping Streamlit as the only import boundary.
+2. **Graceful degradation cascade** — components try thesis narrative first, fall back to raw data stats, then show "unavailable". Handles Orchestrator's partial-failure returns.
+3. **Progress callback closure** — captures `st.status()` container and appends stage updates as a growing checklist.
+4. **Ticker validation in app layer** — regex at the presentation layer, not in the Orchestrator. Data sources handle invalid tickers gracefully already; the regex prevents obviously wrong input from wasting API calls.
+5. **Error handling in layers** — data sources catch all exceptions, Orchestrator returns partial results, app surfaces actionable messages. Each layer handles what it knows about.
+
+### Bugs Found in Code Review (to fix in next session)
+
+| # | Bug | File | Impact |
+|---|-----|------|--------|
+| 23 | Operating Expense used as Operating Income in margin chart | `charts.py:179` | Wrong margins |
+| 24 | Revised confidence sub-scores ignored after revision | `orchestrator.py:153` | Wrong confidence |
+| 13 | Valuation clarity cap not enforced in Python | `orchestrator.py` | Inflated confidence |
+| 14 | Ratio table crashes on string values | `components.py:265` | UI crash |
+| 25 | MarketData.from_dict() uses Field objects | `models.py:117` | Latent |
+
+### What the Next Session Should Do
+
+1. Fix bugs #23, #24, #13, #14 (quick — 1-5 lines each)
+2. Enhancement #3: Deseasonalized predictability score (YoY same-quarter comparison)
+3. Enhancement #15: ETF/ADR detection warning
+4. Task 15: README
+5. Update handoff docs, check off implementation plan, set CLAUDE.md stage to "QA"
+6. Manual test: `streamlit run app.py` → AAPL, MSFT, TSLA, XXXXX, SPY
+
+### How to Resume
+
+```bash
+cd ~/stock-analyst
+source .venv/bin/activate
+pytest tests/ -v  # Should show 181 passing
+```

@@ -612,7 +612,7 @@ This section defines the intended appearance and layout of the final Streamlit a
 **Files:**
 - Create: `~/stock-analyst/src/ui/charts.py`
 
-- [ ] **Step 1: Implement chart functions**
+- [x] **Step 1: Implement chart functions**
   - `price_chart(price_history) -> go.Figure` — line chart with 50/200 day MA
   - `revenue_profit_chart(financials) -> go.Figure` — grouped bar chart
   - `margin_trends_chart(ratios) -> go.Figure` — multi-line chart
@@ -620,8 +620,8 @@ This section defines the intended appearance and layout of the final Streamlit a
 
 Dark-theme friendly colors. Consistent styling.
 
-- [ ] **Step 2: Smoke test** — verify functions return valid Plotly figures
-- [ ] **Step 3: Commit**
+- [x] **Step 2: Smoke test** — verify functions return valid Plotly figures
+- [x] **Step 3: Commit**
 ```bash
 git commit -m "Add Plotly chart builders for financial visualization"
 ```
@@ -631,7 +631,7 @@ git commit -m "Add Plotly chart builders for financial visualization"
 **Files:**
 - Create: `~/stock-analyst/src/ui/components.py`
 
-- [ ] **Step 1: Implement rendering functions**
+- [x] **Step 1: Implement rendering functions**
   - `render_recommendation_badge(rec, confidence_score)` — colored badge (green=Buy, red=Sell, yellow=Hold) with confidence score gauge
   - `render_confidence_score(confidence: ConfidenceScore)` — colored gauge (0-100), summary text, expandable driver breakdown table showing each factor, its impact (+/-), and explanation. This is the key user-empowerment feature.
   - `render_executive_summary(thesis)` — hero section
@@ -641,7 +641,7 @@ git commit -m "Add Plotly chart builders for financial visualization"
   - `render_raw_data(data)` — expandable sections per data category
   - `render_pipeline_status(stages)` — progress indicator via st.status()
 
-- [ ] **Step 2: Commit**
+- [x] **Step 2: Commit**
 ```bash
 git commit -m "Add Streamlit UI components for analysis display"
 ```
@@ -651,7 +651,7 @@ git commit -m "Add Streamlit UI components for analysis display"
 **Files:**
 - Create: `~/stock-analyst/app.py`
 
-- [ ] **Step 1: Implement app.py**
+- [x] **Step 1: Implement app.py**
 
 Layout:
 - Page config (wide, title, icon)
@@ -668,8 +668,8 @@ Session state for persisting results across Streamlit reruns.
 1. **Persistent footer bar (all pages):** Always visible, subtle styling (small font, muted color, thin top border). Use `st.markdown` with fixed-position CSS or a consistent footer component.
 2. **Yellow info banner (Investment Thesis tab only):** Rendered at top of tab, above hero section. Use `st.warning()`. Text: "AI-generated analysis for educational purposes only. Not financial advice. Always consult a qualified financial advisor before making investment decisions."
 
-- [ ] **Step 2: Manual test** — `streamlit run app.py`, analyze AAPL
-- [ ] **Step 3: Commit**
+- [ ] **Step 2: Manual test** — `streamlit run app.py`, analyze AAPL *(deferred to next session)*
+- [x] **Step 3: Commit**
 ```bash
 git commit -m "Add Streamlit app with full analysis pipeline UI"
 ```
@@ -680,10 +680,16 @@ git commit -m "Add Streamlit app with full analysis pipeline UI"
 
 ### Task 14: Error Handling + Edge Cases
 
-- [ ] **Step 1:** Ensure every data source returns gracefully on failure (no uncaught exceptions)
-- [ ] **Step 2:** Add `st.error()` for common failures (invalid ticker, missing API key, rate limited)
-- [ ] **Step 3:** Test edge cases: penny stock, foreign ADR, recent IPO, invalid ticker
-- [ ] **Step 4:** Commit
+- [x] **Step 1:** Ensure every data source returns gracefully on failure (no uncaught exceptions)
+- [x] **Step 2:** Add `st.error()` for common failures (invalid ticker, missing API key, rate limited)
+- [ ] **Step 3:** Test edge cases: penny stock, foreign ADR, recent IPO, invalid ticker *(deferred to next session)*
+- [x] **Step 4:** Commit
+
+### Task 14.5: Code Review + Bug Discovery (added)
+
+- [x] **Step 1:** 3-agent parallel review of full codebase (UI, agent pipeline, data sources)
+- [x] **Step 2:** 5 bugs found, 13 new entries added to `docs/future-enhancements.md` (25 total)
+- [x] **Step 3:** Commit
 
 ### Task 15: README
 
@@ -693,9 +699,20 @@ git commit -m "Add Streamlit app with full analysis pipeline UI"
 git commit -m "Add README with setup instructions and architecture overview"
 ```
 
+### Task 15.5: Pre-Launch Bug Fixes + Enhancements (added)
+
+- [ ] **Step 1:** Fix bug #23 — remove "Operating Expense" from margin chart candidates
+- [ ] **Step 2:** Fix bug #24 — incorporate revised_subscores into confidence computation
+- [ ] **Step 3:** Fix bug #13 — enforce valuation_clarity cap at 60 when no peers
+- [ ] **Step 4:** Fix bug #14 — safe format for ratio table values
+- [ ] **Step 5:** Enhancement #3 — deseasonalized predictability score (YoY same-quarter CV)
+- [ ] **Step 6:** Enhancement #15 — ETF/ADR/mutual fund detection warning
+- [ ] **Step 7:** Update tests for all fixes
+- [ ] **Step 8:** Commit
+
 ### Session 3 Handoff
 
-- [ ] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
+- [x] **Append to docs/handoff-build.md:** What was built, decisions made, deviations from plan
 - [ ] **Update CLAUDE.md stage to "QA"**
 - [ ] **Commit handoff docs**
 
