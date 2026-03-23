@@ -153,7 +153,7 @@ stock-analyst/
 │       ├── components.py           # Streamlit rendering functions
 │       └── charts.py               # Plotly chart builders
 ├── tests/                          # 203 tests (unit + integration)
-└── docs/                           # PRD, architecture, handoff docs
+└── docs/                           # PRD, architecture docs
 ```
 
 ## Design Documentation
@@ -162,7 +162,6 @@ The `/docs` directory contains the full product and technical design:
 
 - **[PRD](docs/prd.md)** — Product requirements, user journey, success criteria
 - **[Design](docs/design.md)** — Architecture, data contracts, confidence algorithm, UI spec
-- **[Implementation Plan](docs/handoff-implementation-plan.md)** — Phased build plan with task tracking
 
 ## Scope
 

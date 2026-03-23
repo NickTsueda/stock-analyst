@@ -10,7 +10,6 @@ A multi-agent AI stock analysis tool that takes a ticker symbol and produces a c
 
 **Architecture:** 4-agent pipeline (Orchestrator → Data Collector → Financial Analyst → Thesis Builder) using Python, Claude Sonnet, and Streamlit. No LangChain/CrewAI — plain Python classes with typed data contracts.
 
-**Purpose:** Portfolio piece demonstrating PM product thinking + multi-agent AI system design.
 
 ## Current Stage
 
@@ -30,10 +29,6 @@ Before doing anything in this session, read the following documents in order:
 1. /docs/prd.md
 2. /docs/design.md
 3. /docs/bugs.md
-4. /docs/handoff-requirements.md
-5. /docs/handoff-design.md
-6. /docs/handoff-implementation-plan.md
-7. /docs/handoff-build.md
 
 After reading, summarize:
 - What has been built so far
@@ -89,14 +84,6 @@ One bug per session. Each session should:
 4. Run `python run_collector.py <TICKER>` to verify
 5. Update `docs/bugs.md` to mark the bug as fixed
 6. Update this priority list if needed
-
-## Implementation Plan
-
-**Canonical source:** `docs/handoff-implementation-plan.md` (full plan with all tasks and checkboxes)
-
-**Notion copy** (for sharing/reference): https://www.notion.so/3236b14dd0678122a2abe816656259a9
-
-The local file is the source of truth. Notion is a sharing copy.
 
 ## Folder Conventions
 
