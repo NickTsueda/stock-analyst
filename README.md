@@ -162,6 +162,7 @@ The `/docs` directory contains the full product and technical design:
 
 - **[PRD](docs/prd.md)** — Product requirements, user journey, success criteria
 - **[Design](docs/design.md)** — Architecture, data contracts, confidence algorithm, UI spec
+- **[Implementation Plan](docs/implementation-plan.md)** — Phased build plan with task breakdown
 
 ## Scope
 
