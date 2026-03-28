@@ -21,6 +21,20 @@ from src.ui.charts import (
     revenue_profit_chart,
 )
 
+# --- Helpers ---
+
+
+def _escape_dollars(text: str) -> str:
+    """Escape bare ``$`` so Streamlit doesn't treat them as LaTeX delimiters.
+
+    ``st.markdown`` renders ``$…$`` as inline math.  Financial text is full of
+    dollar signs (``$2.6B``), which triggers false LaTeX blocks that strip
+    whitespace and garble the output.  Replacing ``$`` → ``\\$`` keeps them
+    literal.
+    """
+    return text.replace("$", r"\$")
+
+
 # --- Color constants ---
 
 _GREEN = "#4CAF50"
@@ -87,7 +101,7 @@ def render_confidence_score(confidence: ConfidenceScore) -> None:
             unsafe_allow_html=True,
         )
         if confidence.summary:
-            st.markdown(confidence.summary)
+            st.markdown(_escape_dollars(confidence.summary))
 
     # Expandable driver breakdown
     with st.expander("Score Driver Breakdown", expanded=False):
@@ -118,7 +132,7 @@ def render_confidence_score(confidence: ConfidenceScore) -> None:
 def render_executive_summary(thesis: InvestmentThesis) -> None:
     """Executive summary prose."""
     if thesis.executive_summary:
-        st.markdown(thesis.executive_summary)
+        st.markdown(_escape_dollars(thesis.executive_summary))
 
 
 def render_thesis_cases(thesis: InvestmentThesis) -> None:
@@ -145,10 +159,10 @@ def render_thesis_cases(thesis: InvestmentThesis) -> None:
                 f'</div>',
                 unsafe_allow_html=True,
             )
-            st.markdown(case.narrative)
+            st.markdown(_escape_dollars(case.narrative))
             if case.drivers:
                 for driver in case.drivers:
-                    st.markdown(f"- {driver}")
+                    st.markdown(f"- {_escape_dollars(driver)}")
 
 
 def render_risks_catalysts(thesis: InvestmentThesis) -> None:
@@ -158,14 +172,14 @@ def render_risks_catalysts(thesis: InvestmentThesis) -> None:
         st.markdown(f"**:red[Risks]**")
         if thesis.risks:
             for risk in thesis.risks:
-                st.markdown(f"- {risk}")
+                st.markdown(f"- {_escape_dollars(risk)}")
         else:
             st.caption("No risks identified")
     with col_c:
         st.markdown(f"**:green[Catalysts]**")
         if thesis.catalysts:
             for cat in thesis.catalysts:
-                st.markdown(f"- {cat}")
+                st.markdown(f"- {_escape_dollars(cat)}")
         else:
             st.caption("No catalysts identified")
 
@@ -180,7 +194,7 @@ def render_insider_institutional(
     with col1:
         st.markdown("**Insider Activity**")
         if thesis.insider_summary:
-            st.markdown(thesis.insider_summary)
+            st.markdown(_escape_dollars(thesis.insider_summary))
         elif data.insider_activity and data.insider_activity.transactions:
             net = data.insider_activity.net_buys
             total = len(data.insider_activity.transactions)
@@ -208,7 +222,7 @@ def render_macro_context(thesis: InvestmentThesis, data: DataPackage) -> None:
     """Macro context summary."""
     st.subheader("Macro Context")
     if thesis.macro_context:
-        st.markdown(thesis.macro_context)
+        st.markdown(_escape_dollars(thesis.macro_context))
     elif data.macro:
         m = data.macro
         parts = []
@@ -301,16 +315,16 @@ def render_financial_analysis(
         with col_s:
             st.markdown("**Strengths**")
             for s in analysis.strengths:
-                st.markdown(f"- :green[{s}]")
+                st.markdown(f"- :green[{_escape_dollars(s)}]")
         with col_c:
             st.markdown("**Concerns**")
             for c in analysis.concerns:
-                st.markdown(f"- :red[{c}]")
+                st.markdown(f"- :red[{_escape_dollars(c)}]")
 
     # Chain-of-thought reasoning
     if analysis.chain_of_thought:
         with st.expander("Agent Reasoning (Chain-of-Thought)", expanded=False):
-            st.markdown(analysis.chain_of_thought)
+            st.markdown(_escape_dollars(analysis.chain_of_thought))
 
 
 # --- Raw Data tab ---
