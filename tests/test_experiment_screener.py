@@ -1,5 +1,5 @@
 """Tests for S&P 500 stratified random stock screener."""
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 import pandas as pd
 import pytest
@@ -33,7 +33,9 @@ MOCK_SP500 = pd.DataFrame({
 
 class TestFetchSp500Tickers:
     @patch("src.experiment.screener.pd.read_html")
-    def test_returns_dataframe_with_required_columns(self, mock_read_html):
+    @patch("src.experiment.screener.requests.get")
+    def test_returns_dataframe_with_required_columns(self, mock_get, mock_read_html):
+        mock_get.return_value = MagicMock(text="<html></html>")
         mock_read_html.return_value = [MOCK_SP500]
         df = fetch_sp500_tickers()
         assert "Symbol" in df.columns

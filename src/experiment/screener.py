@@ -5,9 +5,11 @@ sample across GICS sectors. Default sample size is 50.
 """
 from __future__ import annotations
 
+import io
 import math
 
 import pandas as pd
+import requests
 
 
 _SP500_WIKI_URL = "https://en.wikipedia.org/wiki/List_of_S%26P_500_companies"
@@ -18,7 +20,9 @@ def fetch_sp500_tickers() -> pd.DataFrame:
 
     Returns DataFrame with at least 'Symbol' and 'GICS Sector' columns.
     """
-    tables = pd.read_html(_SP500_WIKI_URL)
+    resp = requests.get(_SP500_WIKI_URL, headers={"User-Agent": "StockAnalyst/1.0"})
+    resp.raise_for_status()
+    tables = pd.read_html(io.StringIO(resp.text))
     df = tables[0]
     # Some symbols have dots (BRK.B) — yfinance uses hyphens (BRK-B)
     df["Symbol"] = df["Symbol"].str.replace(".", "-", regex=False)
